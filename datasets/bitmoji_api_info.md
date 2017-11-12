@@ -5,7 +5,7 @@
 ```
 https://render.bitstrips.com/render/%e/%u-v1.png?pd2={"%edit_prop_1":"%edit_arg_1","%edit_prop_2":"%edit_arg_2"}&%other_args
 ```
-The "%" denotes where an argument shouuld be inserted, you should not actually include it in the command.
+The "%" denotes where an argument should be inserted, you should not actually include it in the command.
 
 You must insert the following arguments:
 * %e (expression/pose id): I believe this controls the expression of the emoji or the pose. **The only one that matters for our use is 6688424** as it's the default avatar editor pose.
@@ -44,6 +44,12 @@ You must insert the following arguments:
 | lipstick | {"ff9866":13442115}, {"ff9866":15354474}, {"ff9866":14373436}, {"ff9866":13334634}, {"ff9866":10361428}, {"ff9866":15683906}, {"ff9866":10904915}, {"ff9866":7671346}, {"ff9866":4855067},  | add these args to the colour list |
 | hair | "cranium":"cranium_%","forehead":"forehead_%","hair_back":"hair_back_%","hair_front":"hair_front_%","hairbottom":"hairbottom_%" | this is the general template for hair, below this shows the combinations for these based on hair length/type/style | 
 | short hair | default, shortstraight01, tom, shortwind, smart02, smart, shortstraight06, tjg, beckham, conan, elvis, puddy, bowlpart, fauxhawk, mayor, slickback, smart03, shortwavymale, shortwavy01, shortwavy02, sethgreen, midwavy02, gerard, shortmess, shortwavy03, mushroom, kramer, shortcurl11, shortcurl03, midfro01, davek, mcbride, shortcurl07, jerry, shahan, ba, shortcurl06, shortcurl04, shortcurl02, flattop01, flattop02, flattop03, shortcurl, cornrows | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_standard,hair_back_%,hair_front_%,hairbottom_blank} |
+| medium hair | midstraightmale, midstraight02, midstraight05, midstraight01, midstraight04, ashton, midstraight03, longwavy04, skywalker, bob02, bangs02, asymm, midwavymale, midwavy04, midwavy07, midwavy05, midwavy06, midwavy08, midwavy01, pixie, longpart02, dorian, shortcurl05, midcurl11, midcurl12, midcurl09, midcurl14, dreadsdown01, midcurl10, midcurl13, midcurl15, bigfro01 | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_standard,hair_back_%,hair_front_%,hairbottom_blank} |
+| long hair | longstraightmale, longstraight01 (bottom), longstraight02 (bottom), longstraight03 (bottom), longstraight08, longwavy05 (bottom), longstraight09, longstraight10 (bottom), longstraight11, longstraight12 (bottom), ponytail01, ponytail03, hairbun, longwavy (bottom), longwavymale, longerwavy (bottom), longwavy09 (bottom), longcurl05 (bottom), longwavy10 (bottom), longwavy05 (bottom), longwavy08 (bottom), longwavy06, mjackson, ponytail02, ponytail04, longpart, longwavy02, longcurlmale, ozzy (bottom), longwavy03, longcurl02, cornrows02, dreadsdown02 (bottom), dreadspony, dreadsup, kennyg (bottom), longcurl05, curlbun, longcurl04 (bottom), longcurl01 (bottom), beyonce (bottom) | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_standard,hair_back_%,hair_front_%,hairbottom_blank(unless noted otherwise)} |
+| bald | bald01, buzz, ian (standard), shortbald01 (standard), wavybald (standard), george (standard), buzzbald (standard), shortbald02 (standard), letterman (standard), combover01 (standard), wavybald (standard) | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_% (unless noted as standard),hair_back_%,hair_front_%,hairbottom_blank} |
+| wacky | frohawk, mohawk01, anime, logan, bjork, spikey, einstein, limphawk, messhawk | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_standard,hair_back_%,hair_front_%,hairbottom_blank} |
+| jaw |  |  |
+| eyebrows |  |  |
 
 
 Here's some things I decided to leave off this properties list that we may want to experiment with later:
