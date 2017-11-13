@@ -24,7 +24,7 @@ You must insert the following arguments:
       * style=1
   * I'm sure there are others, but these seem like the relevant ones that show up during the avatar editor.
   
-  ### PD2 Properties and Values ###
+  ### Male PD2 Properties and Values ###
   
 | **Property**        | **Values**           | **Description**           |
 | ------------- |:-------------:|:-------------:|
@@ -34,10 +34,16 @@ You must insert the following arguments:
 | long hair | longstraightmale, longstraight01 (bottom), longstraight02 (bottom), longstraight03 (bottom), longstraight08, longwavy05 (bottom), longstraight09, longstraight10 (bottom), longstraight11, longstraight12 (bottom), ponytail01, ponytail03, hairbun, longwavy (bottom), longwavymale, longerwavy (bottom), longwavy09 (bottom), longcurl05 (bottom), longwavy10 (bottom), longwavy05 (bottom), longwavy08 (bottom), longwavy06, mjackson, ponytail02, ponytail04, longpart, longwavy02, longcurlmale, ozzy (bottom), longwavy03, longcurl02, cornrows02, dreadsdown02 (bottom), dreadspony, dreadsup, kennyg (bottom), longcurl05, curlbun, longcurl04 (bottom), longcurl01 (bottom), beyonce (bottom) | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_standard,hair_back_%,hair_front_%,hairbottom_blank(unless noted otherwise)} |
 | bald | bald01, buzz, ian (standard), shortbald01 (standard), wavybald (standard), george (standard), buzzbald (standard), shortbald02 (standard), letterman (standard), combover01 (standard), wavybald (standard) | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_% (unless noted as standard),hair_back_%,hair_front_%,hairbottom_blank} |
 | wacky hair | frohawk, mohawk01, anime, logan, bjork, spikey, einstein, limphawk, messhawk | includes all styles for straight/wavy/curly in order of general hair template {cranium_%,forehead_standard,hair_back_%,hair_front_%,hairbottom_blank} |
-| jaw |  |  |
-| eyebrows |  |  |
+| jaw | jaw_n11, jaw_n3, jaw_n4, jaw_n2, jaw_n9, jaw_n5, jaw_n6, jaw_n10, jaw_n7, jaw_n1 | {"jaw":"%"} |
+| eyebrows | 17, 19, 18, 15, 21, 22, 24, 32, 16, 30, 26, 20, 25, 27, 28, 29, 31, 33, 23, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14  | {"brow_L":"brow_n%","brow_R":"brow_n%"} |
+| eyes | 1, 2, 11, 15, 3, 7, 8, 9, 12, 18, 10, 4, 5, 6, 13, 14, 16, 17 | {"eye_L":"eye_n%","eye_R":"eye_n%","eyelines_L":"eye_n%","eyelines_R":"eye_n%","eyelid_L":"eyelid_n1_%","eyelid_R":"eyelid_n1_%"} |
+| nose | 1-18 | {"nose":"nose_n%"} |
+| mouth | {1, 3}, {2, 3}, {6, 5}, {5, 5}, {3, 3}, {7, 5}, {9, 3}, {4, 3}, {8, 5} | {"mouth":"mouth_n%","tongue":"tongue_n1_%"} |
+| ears | 1-9 | {"ear_L":"ear_n%","ear_R":"ear_n%"} |
+| facial hair | beard_n4_1_stachin_blank_stachout_n4_1, beard_n3_1_stachin_n1_1_stachout_n1_1, beard_n1_1_stachin_n1_1_stachout_n1_1, beard_n2_1_stachin_n1_1_stachout_n1_1, beard_n6_1_stachin_n1_1_stachout_n1_1, beard_n3_1_stachin_blank_stachout_n5_1, beard_n3_1_stachin_blank_stachout_n6_1, beard_n3_1_stachin_blank_stachout_n7_1, beard_n4_1_stachin_blank_stachout_n5_1, beard_n4_1_stachin_blank_stachout_n6_1, beard_n4_1_stachin_blank_stachout_n7_1, beard_n4_1_stachin_n1_1_stachout_n1_1 | {"beard":"%","stachin":"%","stachout":"%"} (Note: if stachin is blank then % is just "\_blank") |
+| glasses | 1-6 (no lenses), 1a-6a (with non-glossy lenses)  | {"glasses":"glasses_n%"} |
 
-### Other Properties and Values
+### Male Other Properties and Values
 
 | **Property**        | **Values**           | **Description**           |
 | ------------- |:-------------:|:-------------:|
@@ -47,6 +53,7 @@ You must insert the following arguments:
 | eyebrow color |    {"4f453e":6700322}, {"4f453e":5844766}, {"4f453e":3218460}, {"4f453e":1579802}, {"4f453e":11569973}, {"4f453e":9663272}, {"4f453e":7162651}, {"4f453e":3615014}, {"4f453e":14386178}, {"4f453e":11618049}, {"4f453e":8203556}, {"4f453e":7733505}, {"4f453e":15132390}, {"4f453e":7696224}, {"4f453e":9343614}, {"4f453e":3553071}     | add this arg to the colour list       |
 | beard color | {"6f4b4b":6700322}, {"6f4b4b":5844766}, {"6f4b4b":3218460}, {"6f4b4b":1579802}, {"6f4b4b":11569973}, {"6f4b4b":9663272}, {"6f4b4b":7162651}, {"6f4b4b":3615014}, {"6f4b4b":14386178}, {"6f4b4b":11618049}, {"6f4b4b":8203556}, {"6f4b4b":7733505}, {"6f4b4b":15132390}, {"6f4b4b":7696224}, {"6f4b4b":9343614}, {"6f4b4b":3553071},  | add these args to the colour list |
 | lipstick | {"ff9866":13442115}, {"ff9866":15354474}, {"ff9866":14373436}, {"ff9866":13334634}, {"ff9866":10361428}, {"ff9866":15683906}, {"ff9866":10904915}, {"ff9866":7671346}, {"ff9866":4855067},  | add these args to the colour list |
+| eye color | 5977116, 8404014, 11174994, 3763125, 6064564, 7693930, 2384950, 5474915, 1118481, 6639732, 5793385, 5789030, 4611439, 3307665, 7448799, 11767108, 11119494, 11188685 | add these args to the colour list {"36a7e9":%} |
 
 
 Here's some things I decided to leave off this properties list that we may want to experiment with later:
@@ -61,3 +68,4 @@ Here's some things I decided to leave off this properties list that we may want 
 * Pupils
 * Hair Accesories
 * Various colors for skin, hair, eyebrows, beard, and lipstick that will not be at all prevalent in the face image dataset.
+* Ommitted a large chunk of ridiculous glasses that most likely won't be seen in face dataset (in particular sunglasses).
