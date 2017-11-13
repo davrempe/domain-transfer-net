@@ -9,7 +9,7 @@ The "%" denotes where an argument should be inserted, you should not actually in
 
 You must insert the following arguments:
 * %e (expression/pose id): I believe this controls the expression of the emoji or the pose. **The only one that matters for our use is 6688424** as it's the default avatar editor pose.
-* %u (user id): controls the base emoji that later arguments will edit. Mine is 371434407_3_s1.
+* %u (user id): controls the base emoji that later arguments will edit. Mine (male) is 371434407_1_s1; my other (female) is 122369401_1_s1.
     * As far as I can tell the 3 in "_3_" controls which saved iteration of the emoji to use.
     * The "s1" controls the style, larger number (e.g. "s5") can render the bitmoji style instead of bitstrips.
     * We should probably use one boy and one girl user id because the gender is not an editable property.
