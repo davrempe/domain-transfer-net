@@ -21,20 +21,45 @@ class DigitTransferNet(nn.Module):
 		# TODO implement the forward pass
 		pass
 
-# TODO f function (mnist classifier)
+    
+class Flatten(nn.Module):
+	def __init__(self):
+		super(Flatten, self).__init__()
+        
+	def forward(self, x):
+		N, C, H, W = x.size() # read in N, C, H, W
+		return x.view(N, -1)  # "flatten" the C * H * W values into a single vector per image    
+    
 class F(nn.Module):
 	'''
 	MNIST digit classifier.
 	'''
-	def __init__(self, use_gpu=False):
+	def __init__(self, input_channel, use_gpu=False):
+		super(F, self).__init__()
 		self.use_gpu = use_gpu
-		# TODO instantiate all parts of the network
-		# e.g. self.classify = nn.Sequential(conv layers.... + output layer)		
+		self.classify = nn.Sequential(
+                nn.Conv2d(input_channel, 64, kernel_size=4, stride=2, padding=0),
+                nn.ReLU(inplace=True),
+                
+                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=0),
+                nn.ReLU(inplace=True),
+            
+                nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=0),
+                nn.ReLU(inplace=True),
+            
+                nn.Conv2d(256, 128, kernel_size=2, stride=1, padding=0),
+                nn.ReLU(inplace=True),
+                
+                Flatten(),
+                nn.Linear(128, 10)
+              )
+		if self.use_gpu:        
+			self.type(torch.cuda.FloatTensor)
+
 
 	def forward(self, input):
 		# TODO implement the forward pass
-		# e.g. call self.classify(input)
-		pass
+		return self.classify(input)
 
 
 # TODO g funciton
