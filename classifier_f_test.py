@@ -21,12 +21,12 @@ class classifierFTest(BaseTest):
         super(self.__class__, self).__init__(use_gpu)
     
     def create_data_loaders(self):
-        train_set = SVHNDataset(split='train')
+        train_set = SVHNDataset(split='extra')
         self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=128,
-                                          shuffle=True, num_workers=4)
+                                          shuffle=True, num_workers=8)
         test_set = SVHNDataset(split='test')
         self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128,
-                                         shuffle=False, num_workers=4)
+                                         shuffle=False, num_workers=8)
         
     def visualize_single_batch(self):
         # get some random training images
@@ -57,10 +57,9 @@ class classifierFTest(BaseTest):
 
                 # wrap them in Variable
                 if not self.use_gpu:
-                    inputs, labels = Variable(inputs.float()), Variable(labels.float())
+                    inputs, labels = Variable(inputs.float()), Variable(labels.long())
                 else:
                     inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
-
 
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
@@ -72,12 +71,33 @@ class classifierFTest(BaseTest):
                 self.optimizer.step()
 
                 # print statistics
-                running_loss += loss.data[0]
-                if i % 2000 == 1999:    # print every 2000 mini-batches
-                    print('[%d, %5d] loss: %.3f' %
-                          (epoch + 1, i + 1, running_loss / 2000))
-                    running_loss = 0.0
+                #running_loss += loss.data[0]
+                #if i % 2000 == 1999:    # print every 2000 mini-batches
+                #    print('[%d, %5d] loss: %.3f' %
+                #          (epoch + 1, i + 1, running_loss / 2000))
+                #    running_loss = 0.0
+            
+            print('[%dth epoch] training loss: %.3f' % (epoch + 1, loss.data[0]))
 
-        print('Finished Training')    
+        print('Finished Training')
+   
+    def test_model(self):
+        for data in testloader:
+            inputs, labels = data
+            
+            if not self.use_gpu:
+                inputs, labels = Variable(inputs.float()), Variable(labels.long())
+            else:
+                inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
+            
+            outputs = self.model(inputs)
+            
+            _, predicted = torch.max(outputs.data, 1)
+            loss = self.loss_function(outputs, labels)
+            total += labels.size(0)
+            correct += (predicted == labels).sum()
+
+        print('Accuracy of the network on the 10000 test images: %d %%' % (
+            100 * correct / total))
         
     
