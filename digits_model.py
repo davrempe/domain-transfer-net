@@ -14,6 +14,7 @@ class DigitTransferNet(nn.Module):
 	'''
 	def __init__(self, use_gpu=False):
 		self.use_gpu = use_gpu
+		self.d_loss = DLoss
 		# TODO instantiate all parts of the network
 		
 
@@ -21,22 +22,92 @@ class DigitTransferNet(nn.Module):
 		# TODO implement the forward pass
 		pass
 
-# TODO f function (mnist classifier)
+    
+class Flatten(nn.Module):
+	def __init__(self):
+		super(Flatten, self).__init__()
+        
+	def forward(self, x):
+		N, C, H, W = x.size() # read in N, C, H, W
+		return x.view(N, -1)  # "flatten" the C * H * W values into a single vector per image    
+    
 class F(nn.Module):
 	'''
 	MNIST digit classifier.
 	'''
-	def __init__(self, use_gpu=False):
+	def __init__(self, input_channel, use_gpu=False):
+		super(F, self).__init__()
 		self.use_gpu = use_gpu
-		# TODO instantiate all parts of the network
-		# e.g. self.classify = nn.Sequential(conv layers.... + output layer)		
+		self.classify = nn.Sequential(
+                nn.Conv2d(input_channel, 64, kernel_size=4, stride=2, padding=0),
+                nn.ReLU(inplace=True),
+                
+                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=0),
+                nn.ReLU(inplace=True),
+            
+                nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=0),
+                nn.ReLU(inplace=True),
+            
+                nn.Conv2d(256, 128, kernel_size=2, stride=1, padding=0),
+                nn.ReLU(inplace=True),
+                
+                Flatten(),
+                nn.Linear(128, 10)
+              )
+		if self.use_gpu:        
+			self.type(torch.cuda.FloatTensor)
+
 
 	def forward(self, input):
 		# TODO implement the forward pass
-		# e.g. call self.classify(input)
-		pass
+		return self.classify(input)
 
+def conv_bn_lrelu(channels_in, channels_out, kernel, stride, alpha):
+    return nn.Sequential(
+            nn.Conv2d(channels_in, channels_out, kernel, stride),
+            nn.BatchNorm1d(channels_out),
+            nn.LeakyReLU(alpha))
 
-# TODO g funciton
+class G(nn.Module):
+	def __init__(self, channels):
+		super(self.__class__,self).__init__()
+		self.channels = channels
+		self.block = nn.Sequential(
+			# input channel will be 1024
+			nn.ConvTransposed2D(self.channels, self.channels/2,kernel_size=(4,4),stride=2)
+			nn.BatchNorm2D(self.channels/2)
+			nn.ReLU()
+			)
+		self.endblock = nn.Sequential(
+			nn.ConvTransposed2D(self.channels, 3,kernel_size=(4,4),stride=2)
+			)
+	def forward(self,input):
+		output1 = self.block(input)
+		output2 = self.block(output1)
+		output3 = self.block(output2)
+		output = self.endblock(output3)
+		return output
 
-# TODO discriminator function
+class D(nn.Module):
+	def __init__(self, channels,alpha=0.2):
+		super(self.__class__,self).__init__()
+		self.channels = channels
+		self.alpha = alpha
+		self.upblock = nn.Sequential(
+			nn.Conv2D(3, 32, kernel_size=(5,5),stride=2)
+			nn.BatchNorm2D(32)
+			nn.LeakyReLU(self.alpha,inplace=True)
+			conv_bn_lrelu(32,self.channels*2,(5,5),2,self.alpha)
+			conv_bn_lrelu(self.channels*2,self.channels*4,(5,5),2,self.alpha)
+			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha)
+			)
+
+		self.downblock = nn.Sequential(
+			conv_bn_lrelu(self.channels*8,self.channels*2,(5,5),2,self.alpha)
+			conv_bn_lrelu(self.channels*2,self.channels,(5,5),2,self.alpha)
+			Conv2d(self.channels,1,(5,5),2,self.alpha)
+			)
+	def forward(self, input):
+		output1 = self.upblock(input)
+		output = self.downblock(output1)
+		return output
