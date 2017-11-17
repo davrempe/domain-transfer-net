@@ -74,8 +74,8 @@ class G(nn.Module):
 		self.channels = channels
 		self.block = nn.Sequential(
 			# input channel will be 1024
-			nn.ConvTransposed2D(self.channels, self.channels/2,kernel_size=(4,4),stride=2)
-			nn.BatchNorm2D(self.channels/2)
+			nn.ConvTransposed2D(self.channels, self.channels/2,kernel_size=(4,4),stride=2),
+			nn.BatchNorm2D(self.channels/2),
 			nn.ReLU()
 			)
 		self.endblock = nn.Sequential(
@@ -94,17 +94,17 @@ class D(nn.Module):
 		self.channels = channels
 		self.alpha = alpha
 		self.upblock = nn.Sequential(
-			nn.Conv2D(3, 32, kernel_size=(5,5),stride=2)
-			nn.BatchNorm2D(32)
-			nn.LeakyReLU(self.alpha,inplace=True)
-			conv_bn_lrelu(32,self.channels*2,(5,5),2,self.alpha)
-			conv_bn_lrelu(self.channels*2,self.channels*4,(5,5),2,self.alpha)
-			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha)
+			nn.Conv2D(3, 32, kernel_size=(5,5),stride=2),
+			nn.BatchNorm2D(32),
+			nn.LeakyReLU(self.alpha,inplace=True),
+			conv_bn_lrelu(32,self.channels*2,(5,5),2,self.alpha),
+			conv_bn_lrelu(self.channels*2,self.channels*4,(5,5),2,self.alpha),
+			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha),
 			)
 
 		self.downblock = nn.Sequential(
-			conv_bn_lrelu(self.channels*8,self.channels*2,(5,5),2,self.alpha)
-			conv_bn_lrelu(self.channels*2,self.channels,(5,5),2,self.alpha)
+			conv_bn_lrelu(self.channels*8,self.channels*2,(5,5),2,self.alpha),
+			conv_bn_lrelu(self.channels*2,self.channels,(5,5),2,self.alpha),
 			Conv2d(self.channels,1,(5,5),2,self.alpha)
 			)
 	def forward(self, input):

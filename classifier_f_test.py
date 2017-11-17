@@ -22,7 +22,7 @@ class classifierFTest(BaseTest):
     
     def create_data_loaders(self):
         train_set = SVHNDataset(split='extra')
-        self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=128,
+        self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256,
                                           shuffle=True, num_workers=8)
         test_set = SVHNDataset(split='test')
         self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128,
@@ -75,11 +75,12 @@ class classifierFTest(BaseTest):
                 running_loss += loss.data[0]
                 total += labels.size(0)
                 _, predicted = torch.max(outputs.data, 1)
-                correct += (predicted == labels).sum()
+                correct += (predicted == labels.data).sum()
 
             correct = 1. * correct / total
             print('[%dth epoch]' % (epoch + 1))
-            print('training loss: %.4f   accuracy: %.3f' % (running_loss, 100 * correct))
+            print('training loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * correct))
+            self.test_model()
 
         print('Finished Training')
    
@@ -87,7 +88,7 @@ class classifierFTest(BaseTest):
         running_loss = 0.0
         correct = 0
         total = 0
-        for data in testloader:
+        for i, data in enumerate(self.test_loader, 0):
             inputs, labels = data
             
             if not self.use_gpu:
@@ -101,9 +102,9 @@ class classifierFTest(BaseTest):
             running_loss += loss.data[0]
             total += labels.size(0)
             _, predicted = torch.max(outputs.data, 1)
-            correct += (predicted == labels).sum()
+            correct += (predicted == labels.data).sum()
         
         correct = 1. * correct / total
 
-        print('test loss: %.4f   accuracy: %.3f' % (running_loss, 100 * correct))
+        print('test loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * correct))
     
