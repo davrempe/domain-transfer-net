@@ -51,16 +51,17 @@ class classifierFTest(BaseTest):
         for epoch in range(num_epochs):  # loop over the dataset multiple times
 
             running_loss = 0.0
+            correct = 0
+            total = 0
             for i, data in enumerate(self.train_loader, 0):
                 # get the inputs
                 inputs, labels = data
 
                 # wrap them in Variable
                 if not self.use_gpu:
-                    inputs, labels = Variable(inputs.float()), Variable(labels.float())
+                    inputs, labels = Variable(inputs.float()), Variable(labels.long())
                 else:
                     inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
-
 
                 # zero the parameter gradients
                 self.optimizer.zero_grad()
@@ -71,13 +72,40 @@ class classifierFTest(BaseTest):
                 loss.backward()
                 self.optimizer.step()
 
-                # print statistics
                 running_loss += loss.data[0]
-                if i % 2000 == 1999:    # print every 2000 mini-batches
-                    print('[%d, %5d] loss: %.3f' %
-                          (epoch + 1, i + 1, running_loss / 2000))
-                    running_loss = 0.0
+                total += labels.size(0)
+                _, predicted = torch.max(outputs.data, 1)
+                correct += (predicted == labels).sum()
 
-        print('Finished Training')    
+            correct = 1. * correct / total
+            print('[%dth epoch]' % (epoch + 1))
+            print('training loss: %.4f   accuracy: %.3f' % (running_loss, 100 * correct))
+
+        print('Finished Training')
+   
+    def test_model(self):
+        running_loss = 0.0
+        correct = 0
+        total = 0
+        for data in testloader:
+            inputs, labels = data
+            
+            if not self.use_gpu:
+                inputs, labels = Variable(inputs.float()), Variable(labels.long())
+            else:
+                inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
+            
+            outputs = self.model(inputs)
+            
+            loss = self.loss_function(outputs, labels)
+            running_loss += loss.data[0]
+            total += labels.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            correct += (predicted == labels).sum()
+        
+        correct = 1. * correct / total
+
+        print('test loss: %.4f   accuracy: %.3f' % (running_loss, 100 * correct))
+        
         
     
