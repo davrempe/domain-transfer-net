@@ -7,7 +7,7 @@ import props as pr
 
 DEBUG = False
 
-num_emojis = 20
+num_emojis = 10000
 
 MALE = 1
 FEMALE = 2
@@ -123,7 +123,7 @@ while i < num_emojis:
             hair = pr.male_hair_bald[hair_ind]
             is_standard = pr.male_hair_bald_standard[hair_ind]
             front_blank = pr.male_hair_bald_frontblank[hair_ind]
-            pd2_string += ',\"cranium\":\"cranium_{}\",\"forehead\":"forehead_{}\",\"hair_back\":\"hair_back_{}\",\"hair_front\":\"hair_front_{}\",\"hairbottom\":\"hairbottom_blank\"'.format(hair, 'standard' if is_standard else hair, hair, hair, 'blank' if front_blank else hair)
+            pd2_string += ',\"cranium\":\"cranium_{}\",\"forehead\":"forehead_{}\",\"hair_back\":\"hair_back_{}\",\"hair_front\":\"hair_front_{}\",\"hairbottom\":\"hairbottom_blank\"'.format(hair, 'standard' if is_standard else hair, hair, 'blank' if front_blank else hair)
         else:
             hair = pr.hair_wacky[random.randint(0, high=len(pr.hair_wacky))]
             pd2_string += ',\"cranium\":\"cranium_{}\",\"forehead\":"forehead_standard\",\"hair_back\":\"hair_back_{}\",\"hair_front\":\"hair_front_{}\",\"hairbottom\":\"hairbottom_blank\"'.format(hair, hair, hair)
