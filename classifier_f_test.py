@@ -10,6 +10,7 @@ import torchvision
 import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn as nn
+from torchvision import datasets, transforms
 
 def imshow(img):
         npimg = img.numpy()
@@ -19,19 +20,42 @@ class classifierFTest(BaseTest):
     
     def __init__(self, use_gpu=True):
         super(self.__class__, self).__init__(use_gpu)
+        self.log['train_accuracy'] = []        
+        self.log['val_accuracy'] = []
+
     
-    def create_data_loaders(self):
-        train_set = SVHNDataset(split='extra')
-        self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256,
-                                          shuffle=True, num_workers=8)
-        test_set = SVHNDataset(split='test')
-        self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128,
-                                         shuffle=False, num_workers=8)
-        
+    def create_data_loaders(self, isSVHN):
+        #SVHN
+        if isSVHN:
+            train_set = SVHNDataset(split='extra')
+            self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256,
+                                              shuffle=True, num_workers=8)
+            test_set = SVHNDataset(split='test')
+            self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128,
+                                             shuffle=False, num_workers=8)
+        #MNIST
+        else:
+            self.train_loader = torch.utils.data.DataLoader(
+                    datasets.MNIST('./datasets', train=True, download=True,
+                    transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.1307,), (0.3081,))
+                    ])),
+                    batch_size=256, shuffle=True, num_workers=8)
+
+            self.test_loader = torch.utils.data.DataLoader(
+                    datasets.MNIST('./datasets', train=False, 
+                    transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.1307,), (0.3081,))
+                    ])),
+                    batch_size=128, shuffle=False, num_workers=8)
+
     def visualize_single_batch(self):
         # get some random training images
         dataiter = iter(self.train_loader)
         images, labels = dataiter.next()
+        print(images.shape)
         
         # show images
         imshow(torchvision.utils.make_grid(images))
@@ -45,7 +69,8 @@ class classifierFTest(BaseTest):
             self.loss_function.type(torch.cuda.FloatTensor)
 
     def create_optimizer(self):
-        self.optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+        #self.optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+        self.optimizer = optim.RMSprop(self.model.parameters(), lr = 0.001)
     
     def train_model(self, num_epochs, **kwargs):
         for epoch in range(num_epochs):  # loop over the dataset multiple times
@@ -56,6 +81,9 @@ class classifierFTest(BaseTest):
             for i, data in enumerate(self.train_loader, 0):
                 # get the inputs
                 inputs, labels = data
+                #inputs = torch.cat((inputs, inputs, inputs), 1)
+
+
 
                 # wrap them in Variable
                 if not self.use_gpu:
@@ -80,6 +108,9 @@ class classifierFTest(BaseTest):
             correct = 1. * correct / total
             print('[%dth epoch]' % (epoch + 1))
             print('training loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * correct))
+            self.log['train_loss'].append(running_loss)
+            self.log['train_accuracy'].append(correct)
+            self.log['best_model'] = self.model
             self.test_model()
 
         print('Finished Training')
@@ -90,6 +121,8 @@ class classifierFTest(BaseTest):
         total = 0
         for i, data in enumerate(self.test_loader, 0):
             inputs, labels = data
+            #inputs = torch.cat((inputs, inputs, inputs), 1)    
+
             
             if not self.use_gpu:
                 inputs, labels = Variable(inputs.float()), Variable(labels.long())
@@ -107,4 +140,8 @@ class classifierFTest(BaseTest):
         correct = 1. * correct / total
 
         print('test loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * correct))
+        self.log['val_loss'].append(running_loss)
+        self.log['val_accuracy'].append(correct)
+
+
     
