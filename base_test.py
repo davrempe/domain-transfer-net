@@ -1,6 +1,6 @@
 import copy
 
-class BaseTest():
+class BaseTest(object):
     '''
     Abstract class that outlines how a network test case should be defined.
     '''
