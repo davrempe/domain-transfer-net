@@ -242,25 +242,31 @@ class digits_model_test(BaseTest):
 
         g_loss = []
         d_loss = []       
+        SVHN_count = 0
         
         for epoch in range(num_epochs):
             
             train_g_loss = 0
             train_d_loss = 0
-        
-            if epoch % 2 == 0:
-                train_discrim = False
-                train_gen = True
-            else:
-                train_discrim = True
-                train_gen = False
-                    
-                        
-            s_data_iter = iter(self.s_train_loader)
+           
+
             t_data_iter = iter(self.t_train_loader)
             
             for i in range(l):         
+                SVHN_count += 1               
                 
+                if i % 2 == 0:
+                    train_discrim = False
+                    train_gen = True
+                else:
+                    train_discrim = True
+                    train_gen = False
+                                   
+                
+                if SVHN_count >= len(self.s_train_loader):
+                    SVHN_count = 0
+                    s_data_iter = iter(self.s_train_loader)
+                    
                 s_data, s_labels = s_data_iter.next()
                 t_data, t_labels = t_data_iter.next()
                 
@@ -297,6 +303,7 @@ class digits_model_test(BaseTest):
                 
                 if i == 0:
                     self.seeResults(s_G, t_data)   
+                    continue
    
                 generator_loss = self.g_loss_function(s_D_G, t_D_G, s_F, s_G_F, t_data, t_G,15,15,0)
                 
@@ -305,8 +312,7 @@ class digits_model_test(BaseTest):
                 if train_discrim:
                     discriminator_loss.backward()
                     self.d_optimizer.step()
-                    train_d_loss += discriminator_loss.data[0]
-                    
+                    train_d_loss += discriminator_loss.data[0]                   
                 
                 if train_gen:
                     generator_loss.backward()
@@ -319,8 +325,7 @@ class digits_model_test(BaseTest):
             d_loss.append(train_d_loss)
 
             print("Epoch %d: train_g_loss: %f train_d_loss %f" % (epoch, train_g_loss, train_d_loss))
-        
-            
+                    
         plt.figure()
         e = np.arange(1,num_epochs+1)
         plt.plot(e,g_loss, label = 'generator loss')
