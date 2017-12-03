@@ -82,7 +82,7 @@ class G(nn.Module):
 			nn.ConvTranspose2d(self.channels, self.channels//2, kernel_size=(4,4), stride=2, padding=1),
             nn.BatchNorm1d(self.channels//2),
             nn.ReLU(inplace=True),
-			nn.ConvTranspose2d(self.channels//2, 3, kernel_size=(4,4),stride=2,padding=1),
+			nn.ConvTranspose2d(self.channels//2, 1, kernel_size=(4,4),stride=2,padding=1),
 			)
 	def forward(self,input):
 		output = self.block(input)
@@ -94,7 +94,7 @@ class D(nn.Module):
 		self.channels = channels
 		self.alpha = alpha
 		self.upblock = nn.Sequential(
-			nn.Conv2d(3, 64, kernel_size=(4,4), stride=2, padding=1),
+			nn.Conv2d(1, 64, kernel_size=(4,4), stride=2, padding=1),
 			conv_bn_lrelu(64, self.channels, (4,4), 2, 1, self.alpha, ReLU = False),
 			conv_bn_lrelu(self.channels,self.channels*2,(4,4),2,1,self.alpha, ReLU = True)
 # 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha),
