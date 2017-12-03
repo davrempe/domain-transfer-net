@@ -184,27 +184,10 @@ class digits_model_test(BaseTest):
         return val_loss
    
     def seeResults(self, s_G, t):     
-       
-        img = s_G.data[:16]
-                
-        imshow(torchvision.utils.make_grid(img.cpu(), nrow=4))
-
-    def seeResults2(self,s,t):     
-        if not self.use_gpu:
-            s_data = Variable(s.float())
-            t_data = Variable(t.float())
-        else:
-            s_data = Variable(s.float().cuda())
-            t_data = Variable(t.float().cuda())
-        
-        s_F = self.model['F'](s_data)  
-        s_G = self.model['G'](s_F)
         s_G = s_G.cpu()
         s_G = s_G.data
                 
-        to_img = torchvision.transforms.ToPILImage()
-#         imshow(torchvision.utils.make_grid(t))
-        npimg = torchvision.utils.make_grid(s_G).numpy()
+        npimg = torchvision.utils.make_grid(s_G[:16], nrow=4).numpy()
         npimg = np.transpose(npimg, (1, 2, 0)) 
         zero_array = np.zeros(npimg.shape)
         one_array = np.ones(npimg.shape)
@@ -312,7 +295,7 @@ class digits_model_test(BaseTest):
                 t_D_G = self.model['D'](t_G)
                 s_D_G = self.model['D'](s_G)
                 
-                if i == l-10:
+                if i == 0:
                     self.seeResults(s_G, t_data)   
    
                 generator_loss = self.g_loss_function(s_D_G, t_D_G, s_F, s_G_F, t_data, t_G,15,15,0)
