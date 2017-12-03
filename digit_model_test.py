@@ -233,9 +233,9 @@ class digits_model_test(BaseTest):
         '''
         Trains the model.
         '''
-        visualize_every_n_epoch = kwargs.get("visualize_every_n_epoch", 10)
-        start_discrim_after = kwargs.get("start_discrim_train_after", 2)
-        
+        discrim_batches = kwargs.get("discrim_batches", 5)        
+        gen_batches = kwargs.get("gen_batches", 1)
+
         min_val_loss=float('inf')
 
         l = min(len(self.s_train_loader),len(self.t_train_loader))
@@ -249,20 +249,27 @@ class digits_model_test(BaseTest):
             train_g_loss = 0
             train_d_loss = 0
            
-
+            s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
             
+            training_batches = 0
+            train_discrim = True
             for i in range(l):         
-                SVHN_count += 1               
                 
-                if i % 2 == 0:
-                    train_discrim = False
-                    train_gen = True
+                if train_discrim :
+                    if training_batches < discrim_batches:
+                        training_batches += 1
+                    else:
+                        train_discrim = False
+                        training_batches = 1
                 else:
-                    train_discrim = True
-                    train_gen = False
+                    if training_batches < gen_batches:
+                        training_batches += 1
+                    else:
+                        train_discrim = True
+                        training_batches = 1
                                    
-                
+                SVHN_count += 1               
                 if SVHN_count >= len(self.s_train_loader):
                     SVHN_count = 0
                     s_data_iter = iter(self.s_train_loader)
@@ -313,8 +320,7 @@ class digits_model_test(BaseTest):
                     discriminator_loss.backward()
                     self.d_optimizer.step()
                     train_d_loss += discriminator_loss.data[0]                   
-                
-                if train_gen:
+                else:
                     generator_loss.backward()
                     self.g_optimizer.step()
                     train_g_loss += generator_loss.data[0]
