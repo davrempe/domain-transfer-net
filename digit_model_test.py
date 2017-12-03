@@ -66,6 +66,12 @@ class digits_model_test(BaseTest):
         Plots a minibatch as an example of what the data looks like.
         '''
         # get some random training images
+        dataiter = iter(self.s_train_loader)
+        images, labels = dataiter.next()
+        
+        imshow(torchvision.utils.make_grid(images))
+       
+            
         dataiter = iter(self.t_train_loader)
         images, labels = dataiter.next()
 
@@ -175,8 +181,29 @@ class digits_model_test(BaseTest):
         self.model['G'].train()
         return val_loss
    
-    def seeResults(self):
+    def seeResults(self,s,t):     
+        if not self.use_gpu:
+            s_data = Variable(s.float())
+            t_data = Variable(t.float())
+        else:
+            s_data = Variable(s.float().cuda())
+            t_data = Variable(t.float().cuda())
+        
+        s_F = self.model['F'](s_data)  
+        s_G = self.model['G'](s_F)
+        s_G = s_G.cpu()
+        s_G = s_G.data
+        print(s_G.shape)
+        print(t.shape)
+        print(s_G)
+        
+        
+        to_img = torchvision.transforms.ToPILImage()
+#         imshow(torchvision.utils.make_grid(t))
+        print('image')
+        imshow(torchvision.utils.make_grid(s_G))
 
+        
 
     def create_generator_loss_function(self):
         
@@ -224,20 +251,25 @@ class digits_model_test(BaseTest):
 
         l = min(len(self.s_train_loader),len(self.t_train_loader))-1
 
+        g_loss = np.array([])
+        d_loss = np.array([])       
+        
         for epoch in range(num_epochs):
+            
             train_g_loss = 0
             train_d_loss = 0
-            
-            if epoch % 2 == 0:
+        
+            if epoch < start_discrim_after:
+                train_gen = True
+                train_discrim = False
+            else:
+                if epoch % 2 == 0:
                     train_discrim = False
                     train_gen = True
-            else:
-                    if epoch > start_discrim_after:
-                        train_discrim = True
-                        train_gen = False
-                    else:
-                        train_discrim = False
-                        train_gen = True
+                else:
+                    train_discrim = True
+                    train_gen = False
+                    
                         
             s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
@@ -245,12 +277,14 @@ class digits_model_test(BaseTest):
             visualize_i = np.random.randint(0,l)
             vis_s = 0
             vis_t = 0
-            
+                      
+                 
             for i in range(l):         
                 
-                if i == visualize_i:
+                if i == 0:
                     vis_s, s_labels = s_data_iter.next()
                     vis_t, t_labels = t_data_iter.next()
+                    self.seeResults(vis_s,vis_t)   
                     continue
                     
                 s_data, s_labels = s_data_iter.next()
@@ -290,25 +324,36 @@ class digits_model_test(BaseTest):
                 if train_discrim:
                     discriminator_loss.backward() # TODO: probably don't need retain if alternating
                     self.d_optimizer.step()
+                    print('D',discriminator_loss.data[0])
+                    d_loss = np.append(d_loss,discriminator_loss.data[0])
+                    train_d_loss += discriminator_loss.data[0]
+                    
                 
                 if train_gen:
                     generator_loss.backward()
                     self.g_optimizer.step()
-                
-          
-                print('G',generator_loss.data[0])             
-                print('D',discriminator_loss.data[0])
-                train_g_loss += generator_loss.data[0]
-                train_d_loss += discriminator_loss.data[0]
-                
-            seeResults(vis_s,vis_t)
+                    print('G',generator_loss.data[0])    
+                    g_loss = np.append(g_loss,generator_loss.data[0])
+                    train_g_loss += generator_loss.data[0]
+                        
+         
+             
+                                
 
-            train_g_loss /= l
-            train_d_loss /= l
+            if train_gen:
+                train_g_loss /= l
             
+            if train_discrim:
+                train_d_loss /= l
+                       
             print(epoch)
             print(train_g_loss)
             print(train_d_loss)
+            
+        plt.figure()
+        e = np.arrange(1,epoch+1,1)
+        plt.plot(e,g_loss, label = 'generator loss')
+        plt.plot(e,d_loss, label = 'discriminator loss')
            
 #             val_loss = self.validate(self, **kwargs)
 #             print(val_loss)
