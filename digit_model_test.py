@@ -277,15 +277,18 @@ class digits_model_test(BaseTest):
             visualize_i = np.random.randint(0,l)
             vis_s = 0
             vis_t = 0
-                      
+            
+#             vis_s, s_labels = s_data_iter.next()
+#             vis_t, t_labels = t_data_iter.next()
+#             self.seeResults(vis_s,vis_t)           
                  
             for i in range(l):         
                 
-                if i == 0:
-                    vis_s, s_labels = s_data_iter.next()
-                    vis_t, t_labels = t_data_iter.next()
-                    self.seeResults(vis_s,vis_t)   
-                    continue
+#                 if i == 0:
+#                     vis_s, s_labels = s_data_iter.next()
+#                     vis_t, t_labels = t_data_iter.next()
+#                     self.seeResults(vis_s,vis_t)   
+#                     continue
                     
                 s_data, s_labels = s_data_iter.next()
                 t_data, t_labels = t_data_iter.next()
@@ -322,33 +325,30 @@ class digits_model_test(BaseTest):
                 discriminator_loss = self.d_loss_function(s_D_G,t_D_G,t_D)
 
                 if train_discrim:
-                    discriminator_loss.backward() # TODO: probably don't need retain if alternating
+                    discriminator_loss.backward()
                     self.d_optimizer.step()
-                    print('D',discriminator_loss.data[0])
-                    d_loss = np.append(d_loss,discriminator_loss.data[0])
                     train_d_loss += discriminator_loss.data[0]
                     
                 
                 if train_gen:
                     generator_loss.backward()
-                    self.g_optimizer.step()
-                    print('G',generator_loss.data[0])    
-                    g_loss = np.append(g_loss,generator_loss.data[0])
+                    self.g_optimizer.step()  
                     train_g_loss += generator_loss.data[0]
-                        
-         
-             
-                                
+                                                                   
 
             if train_gen:
                 train_g_loss /= l
+                g_loss = np.append(g_loss,train_d_loss)
+                
             
             if train_discrim:
                 train_d_loss /= l
+                d_loss = np.append(d_loss,train_d_loss)
                        
             print(epoch)
             print(train_g_loss)
             print(train_d_loss)
+        
             
         plt.figure()
         e = np.arrange(1,epoch+1,1)
