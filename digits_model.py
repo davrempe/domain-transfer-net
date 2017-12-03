@@ -14,7 +14,6 @@ class DigitTransferNet(nn.Module):
 	'''
 	def __init__(self, use_gpu=False):
 		self.use_gpu = use_gpu
-		self.d_loss = DLoss
 		# TODO instantiate all parts of the network
 		
 
@@ -47,17 +46,14 @@ class F(nn.Module):
                 nn.ReLU(inplace=True),
                 #nn.LeakyReLU(0.2, inplace=True),
 
-            
                 nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
                 nn.ReLU(inplace=True),
                 #nn.LeakyReLU(0.2, inplace=True),
-
             
                 nn.Conv2d(256, 128, kernel_size=4, stride=1, padding=0),
                 nn.ReLU(inplace=True),
                 #nn.LeakyReLU(0.2, inplace=True),
 
-                
                 Flatten(),
                 nn.Linear(128, 10)
                 #nn.Conv2d(128, 10, kernel_size=1, stride=1, padding=0)
@@ -70,30 +66,31 @@ class F(nn.Module):
 		# TODO implement the forward pass
 		return self.classify(input)
 
-def conv_bn_lrelu(channels_in, channels_out, kernel, stride, alpha):
-    return nn.Sequential(
-            nn.Conv2d(channels_in, channels_out, kernel, stride),
-            nn.BatchNorm1d(channels_out),
-            nn.LeakyReLU(alpha))
+def conv_bn_lrelu(channels_in, channels_out, kernel, stride, padding, alpha, ReLU=True):
+    block = nn.Sequential()
+    block.add_module('conv',nn.Conv2d(channels_in, channels_out, kernel, stride, padding))
+    block.add_module('batchnorm',nn.BatchNorm1d(channels_out))
+    if ReLU:
+        block.add_module('ReLU',nn.LeakyReLU(alpha,inplace=True))
+    return block
 
 class G(nn.Module):
-	def __init__(self, channels):
+	def __init__(self, channels, use_gpu = False):
 		super(self.__class__,self).__init__()
 		self.channels = channels
 		self.block = nn.Sequential(
-			# input channel will be 1024
-			nn.ConvTransposed2D(self.channels, self.channels/2,kernel_size=(4,4),stride=2),
-			nn.BatchNorm2D(self.channels/2),
-			nn.ReLU()
-			)
-		self.endblock = nn.Sequential(
-			nn.ConvTransposed2D(self.channels, 3,kernel_size=(4,4),stride=2)
+			# input channel will be 128
+			nn.ConvTranspose2d(self.channels, self.channels*2, kernel_size=(4,4), stride=1),
+			nn.ConvTranspose2d(self.channels*2, self.channels, kernel_size=(4,4), stride=2, padding=1),
+            nn.BatchNorm1d(self.channels),
+            nn.ReLU(inplace=True),
+			nn.ConvTranspose2d(self.channels, self.channels//2, kernel_size=(4,4), stride=2, padding=1),
+            nn.BatchNorm1d(self.channels//2),
+            nn.ReLU(inplace=True),
+			nn.ConvTranspose2d(self.channels//2, 3, kernel_size=(4,4),stride=2,padding=1),
 			)
 	def forward(self,input):
-		output1 = self.block(input)
-		output2 = self.block(output1)
-		output3 = self.block(output2)
-		output = self.endblock(output3)
+		output = self.block(input)
 		return output
 
 class D(nn.Module):
@@ -102,19 +99,18 @@ class D(nn.Module):
 		self.channels = channels
 		self.alpha = alpha
 		self.upblock = nn.Sequential(
-			nn.Conv2D(3, 32, kernel_size=(5,5),stride=2),
-			nn.BatchNorm2D(32),
-			nn.LeakyReLU(self.alpha,inplace=True),
-			conv_bn_lrelu(32,self.channels*2,(5,5),2,self.alpha),
-			conv_bn_lrelu(self.channels*2,self.channels*4,(5,5),2,self.alpha),
-			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha),
-			)
-
+			nn.Conv2d(3, 64, kernel_size=(4,4), stride=2, padding=1),
+			conv_bn_lrelu(64, self.channels, (4,4), 2, 1, self.alpha, ReLU = False),
+			conv_bn_lrelu(self.channels,self.channels*2,(4,4),2,1,self.alpha, ReLU = True)
+# 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha),
+# 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha) 
+        )
 		self.downblock = nn.Sequential(
-			conv_bn_lrelu(self.channels*8,self.channels*2,(5,5),2,self.alpha),
-			conv_bn_lrelu(self.channels*2,self.channels,(5,5),2,self.alpha),
-			Conv2d(self.channels,1,(5,5),2,self.alpha)
-			)
+			nn.Conv2d(self.channels*2,self.channels,(4,4),1, 0),
+            nn.LeakyReLU(self.alpha,inplace=True),
+			nn.Conv2d(self.channels,3,(1,1),1,0),
+            nn.ReLU(inplace=True)
+        )
 	def forward(self, input):
 		output1 = self.upblock(input)
 		output = self.downblock(output1)
