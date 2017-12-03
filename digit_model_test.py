@@ -66,19 +66,14 @@ class digits_model_test(BaseTest):
         Plots a minibatch as an example of what the data looks like.
         '''
         # get some random training images
-        dataiter = iter(self.s_train_loader)
-        images, labels = dataiter.next()
+        dataiter_s = iter(self.s_train_loader)
+        images_s, labels_s= dataiter_s.next()        
         
-        imshow(torchvision.utils.make_grid(images))
+        dataiter_t = iter(self.t_train_loader)
+        images_t, labels_t = dataiter_t.next()        
+        
+        imshow(torchvision.utils.make_grid(images_s[:8], nrow=4, padding=3))
        
-            
-        dataiter = iter(self.t_train_loader)
-        images, labels = dataiter.next()
-
-        # show images
-        imshow(torchvision.utils.make_grid(images))
-        
-    
     def create_model(self):
         '''
         Constructs the model, converts to GPU if necessary. Saves for training.
@@ -89,9 +84,16 @@ class digits_model_test(BaseTest):
         self.model['G'] = digits_model.G(128, self.use_gpu)
         if self.use_gpu:
             self.model['G'] = self.model['G'].cuda()    
-            self.model['D'] = self.model['D'].cuda() 
-     
-    
+            self.model['D'] = self.model['D'].cuda()
+            
+        self.readClassifier('./pretrained_model/model_F_SVHN.tar')
+        
+    def create_loss_function(self):
+        
+        self.create_distance_function_Tdomain()
+        self.create_discriminator_loss_function()
+        self.create_generator_loss_function()
+
     def create_optimizer(self):
         '''
         Creates and saves the optimizer to use for training.
@@ -181,30 +183,13 @@ class digits_model_test(BaseTest):
         self.model['G'].train()
         return val_loss
    
-    def seeResults(self,s,t):     
-        if not self.use_gpu:
-            s_data = Variable(s.float())
-            t_data = Variable(t.float())
-        else:
-            s_data = Variable(s.float().cuda())
-            t_data = Variable(t.float().cuda())
-        
-        s_F = self.model['F'](s_data)  
-        s_G = self.model['G'](s_F)
-        s_G = s_G.cpu()
-        s_G = s_G.data
-        print(s_G.shape)
-        print(t.shape)
-        print(s_G)
-        
-        
-        to_img = torchvision.transforms.ToPILImage()
-#         imshow(torchvision.utils.make_grid(t))
-        print('image')
-        imshow(torchvision.utils.make_grid(s_G))
+    def seeResults(self, s_G, t):     
+       
+        img = torch.cat((s_G.data[:4], t.data[:4]))
+                
+        imshow(torchvision.utils.make_grid(img.cpu(), nrow=4))
 
         
-
     def create_generator_loss_function(self):
         
         def GLoss(s_D_G, t_D_G, s_F, s_G_F, t, t_G, t_D, alpha, beta, gamma):
@@ -246,8 +231,6 @@ class digits_model_test(BaseTest):
         start_discrim_after = kwargs.get("start_discrim_train_after", 10)
         
         min_val_loss=float('inf')
-        self.readClassifier('./pretrained_model/model_F_SVHN.tar')
-        self.create_distance_function_Tdomain()
 
         l = min(len(self.s_train_loader),len(self.t_train_loader))-1
 
@@ -280,13 +263,7 @@ class digits_model_test(BaseTest):
                       
                  
             for i in range(l):         
-                
-                if i == 0:
-                    vis_s, s_labels = s_data_iter.next()
-                    vis_t, t_labels = t_data_iter.next()
-                    self.seeResults(vis_s,vis_t)   
-                    continue
-                    
+                   
                 s_data, s_labels = s_data_iter.next()
                 t_data, t_labels = t_data_iter.next()
                 
@@ -305,17 +282,20 @@ class digits_model_test(BaseTest):
                 else:
                     s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
                     t_data, t_labels = Variable(t_data.float().cuda()), Variable(t_labels.long().cuda())
-                   
+                       
                     
                 t_F = self.model['F'](t_data)
                 t_D = self.model['D'](t_data)
-                s_F = self.model['F'](s_data)           
+                s_F = self.model['F'](s_data)
                 s_G = self.model['G'](s_F)
                 t_G = self.model['G'](t_F)
                 s_G_F = self.model['F'](s_G)
                 t_G_F = self.model['F'](t_G)
                 t_D_G = self.model['D'](t_G)
                 s_D_G = self.model['D'](s_G)
+                
+                if i == 0:
+                    self.seeResults(s_G, t_data)   
    
                 generator_loss = self.g_loss_function(s_D_G, t_D_G, s_F, s_G_F, t_data, t_G, t_D,15,15,0)
                 
@@ -324,7 +304,7 @@ class digits_model_test(BaseTest):
                 if train_discrim:
                     discriminator_loss.backward() # TODO: probably don't need retain if alternating
                     self.d_optimizer.step()
-                    print('D',discriminator_loss.data[0])
+                    #print('D',discriminator_loss.data[0])
                     d_loss = np.append(d_loss,discriminator_loss.data[0])
                     train_d_loss += discriminator_loss.data[0]
                     
@@ -332,14 +312,10 @@ class digits_model_test(BaseTest):
                 if train_gen:
                     generator_loss.backward()
                     self.g_optimizer.step()
-                    print('G',generator_loss.data[0])    
+                    #print('G',generator_loss.data[0])    
                     g_loss = np.append(g_loss,generator_loss.data[0])
                     train_g_loss += generator_loss.data[0]
                         
-         
-             
-                                
-
             if train_gen:
                 train_g_loss /= l
             
