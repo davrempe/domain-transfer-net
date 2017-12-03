@@ -39,20 +39,28 @@ class F(nn.Module):
 		super(F, self).__init__()
 		self.use_gpu = use_gpu
 		self.classify = nn.Sequential(
-                nn.Conv2d(input_channel, 64, kernel_size=4, stride=2, padding=0),
+                nn.Conv2d(input_channel, 64, kernel_size=4, stride=2, padding=1),
                 nn.ReLU(inplace=True),
+                #nn.LeakyReLU(0.2, inplace=True),
                 
-                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=0),
+                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
                 nn.ReLU(inplace=True),
+                #nn.LeakyReLU(0.2, inplace=True),
+
             
-                nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=0),
+                nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
                 nn.ReLU(inplace=True),
+                #nn.LeakyReLU(0.2, inplace=True),
+
             
-                nn.Conv2d(256, 128, kernel_size=2, stride=1, padding=0),
+                nn.Conv2d(256, 128, kernel_size=4, stride=1, padding=0),
                 nn.ReLU(inplace=True),
+                #nn.LeakyReLU(0.2, inplace=True),
+
                 
                 Flatten(),
                 nn.Linear(128, 10)
+                #nn.Conv2d(128, 10, kernel_size=1, stride=1, padding=0)
               )
 		if self.use_gpu:        
 			self.type(torch.cuda.FloatTensor)
