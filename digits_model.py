@@ -38,15 +38,15 @@ class F(nn.Module):
 		super(F, self).__init__()
 		self.use_gpu = use_gpu
 		self.classify = nn.Sequential(
-                nn.Conv2d(input_channel, 64, kernel_size=4, stride=2, padding=1),
+                nn.Conv2d(input_channel, 64, kernel_size=3, stride=2, padding=1),
                 nn.ReLU(inplace=True),
                 #nn.LeakyReLU(0.2, inplace=True),
                 
-                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+                nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
                 nn.ReLU(inplace=True),
                 #nn.LeakyReLU(0.2, inplace=True),
 
-                nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
+                nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
                 nn.ReLU(inplace=True),
                 #nn.LeakyReLU(0.2, inplace=True),
             

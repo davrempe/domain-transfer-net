@@ -82,14 +82,14 @@ class SVHNDataset(Dataset):
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        #img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
 
         if self.transform is not None:
             img = self.transform(img)
 
         if self.target_transform is not None:
             target = self.target_transform(target)
-
+        
         return img, target
 
     def __len__(self):

@@ -27,10 +27,16 @@ class classifierFTest(BaseTest):
     def create_data_loaders(self, isSVHN):
         #SVHN
         if isSVHN:
-            train_set = SVHNDataset(split='extra')
+            train_set = SVHNDataset(split='extra', transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+                    ]))
             self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256,
                                               shuffle=True, num_workers=8)
-            test_set = SVHNDataset(split='test')
+            test_set = SVHNDataset(split='test', transform=transforms.Compose([
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+                    ]))
             self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128,
                                              shuffle=False, num_workers=8)
         #MNIST
@@ -82,7 +88,6 @@ class classifierFTest(BaseTest):
                 # get the inputs
                 inputs, labels = data
                 #inputs = torch.cat((inputs, inputs, inputs), 1)
-
 
 
                 # wrap them in Variable
