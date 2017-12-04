@@ -38,11 +38,11 @@ class classifierFTest(BaseTest):
                     transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
                     ]))
             self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128,
-                                             shuffle=False, num_workers=8)
+                                          shuffle=False, num_workers=8)
         #MNIST
         else:
             self.train_loader = torch.utils.data.DataLoader(
-                    datasets.MNIST('./datasets', train=True, download=True,
+                    datasets.MNIST('./MNIST', train=True, download=True,
                     transform=transforms.Compose([
                     transforms.ToTensor(),
                     transforms.Normalize((0.1307,), (0.3081,))
@@ -50,7 +50,7 @@ class classifierFTest(BaseTest):
                     batch_size=256, shuffle=True, num_workers=8)
 
             self.test_loader = torch.utils.data.DataLoader(
-                    datasets.MNIST('./datasets', train=False, 
+                    datasets.MNIST('./MNIST', train=False, 
                     transform=transforms.Compose([
                     transforms.ToTensor(),
                     transforms.Normalize((0.1307,), (0.3081,))
@@ -101,6 +101,7 @@ class classifierFTest(BaseTest):
 
                 # forward + backward + optimize
                 outputs = self.model(inputs)
+                #print(outputs.data.shape, labels.squeeze().data.shape)
                 loss = self.loss_function(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
@@ -135,7 +136,6 @@ class classifierFTest(BaseTest):
                 inputs, labels = Variable(inputs.float().cuda()), Variable(labels.long().cuda())
             
             outputs = self.model(inputs)
-            
             loss = self.loss_function(outputs, labels)
             running_loss += loss.data[0]
             total += labels.size(0)
