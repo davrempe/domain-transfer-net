@@ -38,20 +38,25 @@ class F(nn.Module):
 		super(F, self).__init__()
 		self.use_gpu = use_gpu
 		self.classify = nn.Sequential(
-                nn.Conv2d(input_channel, 64, kernel_size=4, stride=2, padding=0),
+                nn.Conv2d(input_channel, 64, kernel_size=3, stride=2, padding=1),
                 nn.ReLU(inplace=True),
+                #nn.LeakyReLU(0.2, inplace=True),
                 
-                nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=0),
+                nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
                 nn.ReLU(inplace=True),
-            
-                nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=0),
+                #nn.LeakyReLU(0.2, inplace=True),
+
+                nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
                 nn.ReLU(inplace=True),
+                #nn.LeakyReLU(0.2, inplace=True),
             
-                nn.Conv2d(256, 128, kernel_size=2, stride=1, padding=0),
+                nn.Conv2d(256, 128, kernel_size=4, stride=1, padding=0),
 #                 nn.ReLU(inplace=True),
-                
+                #nn.LeakyReLU(0.2, inplace=True),
+
 #                 Flatten(),
 #                 nn.Linear(128, 10)
+                #nn.Conv2d(128, 10, kernel_size=1, stride=1, padding=0)
               )
 		if self.use_gpu:        
 			self.type(torch.cuda.FloatTensor)
@@ -82,7 +87,7 @@ class G(nn.Module):
 			nn.ConvTranspose2d(self.channels, self.channels//2, kernel_size=(4,4), stride=2, padding=1),
             nn.BatchNorm1d(self.channels//2),
             nn.ReLU(inplace=True),
-			nn.ConvTranspose2d(self.channels//2, 3, kernel_size=(4,4),stride=2,padding=1),
+			nn.ConvTranspose2d(self.channels//2, 1, kernel_size=(4,4),stride=2,padding=1),
 			)
 	def forward(self,input):
 		output = self.block(input)
@@ -94,7 +99,7 @@ class D(nn.Module):
 		self.channels = channels
 		self.alpha = alpha
 		self.upblock = nn.Sequential(
-			nn.Conv2d(3, 64, kernel_size=(4,4), stride=2, padding=1),
+			nn.Conv2d(1, 64, kernel_size=(4,4), stride=2, padding=1),
 			conv_bn_lrelu(64, self.channels, (4,4), 2, 1, self.alpha, ReLU = False),
 			conv_bn_lrelu(self.channels,self.channels*2,(4,4),2,1,self.alpha, ReLU = True)
 # 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha),

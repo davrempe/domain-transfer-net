@@ -3,6 +3,7 @@ from base_test import BaseTest
 import digits_model
 import numpy as np
 import matplotlib.pyplot as plt
+import data
 
 import torch
 import torchvision
@@ -39,9 +40,10 @@ class digits_model_test(BaseTest):
     
     def create_data_loaders(self):
         
-        MNIST_transform = transforms.Compose([transforms.Pad(2),transforms.ToTensor()])
+        MNIST_transform = transforms.Compose([transforms.Pad(2),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
+        SVHN_transform = transform.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
         
-        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = transforms.ToTensor())
+        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
@@ -49,11 +51,11 @@ class digits_model_test(BaseTest):
         self.t_train_loader = torch.utils.data.DataLoader(t_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
-        s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = transforms.ToTensor())
+        s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
         self.s_val_loader = torch.utils.data.DataLoader(s_val_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
-        s_test_set = torchvision.datasets.SVHN(root = './SVHN/', split='test', download = True, transform = transforms.ToTensor())
+        s_test_set = torchvision.datasets.SVHN(root = './SVHN/', split='test', download = True, transform = SVHN_transform)
         self.s_test_loader = torch.utils.data.DataLoader(s_test_set, batch_size=128,
                                          shuffle=False, num_workers=8)
         
@@ -66,13 +68,14 @@ class digits_model_test(BaseTest):
         Plots a minibatch as an example of what the data looks like.
         '''
         # get some random training images
-        dataiter = iter(self.t_train_loader)
-        images, labels = dataiter.next()
-
-        # show images
-        imshow(torchvision.utils.make_grid(images))
+        dataiter_s = iter(self.s_train_loader)
+        images_s, labels_s= dataiter_s.next()        
         
-    
+        dataiter_t = iter(self.t_train_loader)
+        images_t, labels_t = dataiter_t.next()        
+        
+        imshow(torchvision.utils.make_grid(images_s[:8], nrow=4, padding=3))
+       
     def create_model(self):
         '''
         Constructs the model, converts to GPU if necessary. Saves for training.
@@ -83,9 +86,16 @@ class digits_model_test(BaseTest):
         self.model['G'] = digits_model.G(128, self.use_gpu)
         if self.use_gpu:
             self.model['G'] = self.model['G'].cuda()    
-            self.model['D'] = self.model['D'].cuda() 
-     
-    
+            self.model['D'] = self.model['D'].cuda()
+            
+        self.readClassifier('./pretrained_model/model_F_SVHN_3.tar')
+        
+    def create_loss_function(self):
+        
+        self.create_distance_function_Tdomain()
+        self.create_discriminator_loss_function()
+        self.create_generator_loss_function()
+
     def create_optimizer(self):
         '''
         Creates and saves the optimizer to use for training.
@@ -175,12 +185,27 @@ class digits_model_test(BaseTest):
         self.model['G'].train()
         return val_loss
    
-    def seeResults(self):
-
+    def seeResults(self, s_G, t):     
+        s_G = s_G.cpu()
+        s_G = s_G.data
+                
+        
+        # Unnormalize MNIST images
+        unnorm = data.UnNormalize((0.1307,), (0.3081,))
+        
+        npimg = torchvision.utils.make_grid(unnorm(s_G[:16]), nrow=4).numpy()
+#         print(unnorm(s_G[:16]))
+        npimg = np.transpose(npimg, (1, 2, 0)) 
+        zero_array = np.zeros(npimg.shape)
+        one_array = np.ones(npimg.shape)
+        npimg = np.minimum(npimg,one_array)
+        npimg = np.maximum(npimg,zero_array)
+        plt.imshow(npimg)
+        plt.show()
 
     def create_generator_loss_function(self):
         
-        def GLoss(s_D_G, t_D_G, s_F, s_G_F, t, t_G, t_D, alpha, beta, gamma):
+        def GLoss(s_D_G, t_D_G, s_F, s_G_F, t, t_G, alpha, beta, gamma):
             label_0, label_1, label_2 = (torch.LongTensor(self.batch_size) for i in range(3))
             label_0 = Variable(label_0.cuda())
             label_1 = Variable(label_1.cuda())
@@ -215,43 +240,50 @@ class digits_model_test(BaseTest):
         '''
         Trains the model.
         '''
-        visualize_every_n_epoch = kwargs.get("visualize_every_n_epoch", 10)
-        start_discrim_after = kwargs.get("start_discrim_train_after", 10)
-        
+        discrim_batches = kwargs.get("discrim_batches", 2)        
+        gen_batches = kwargs.get("gen_batches", 4)
+
         min_val_loss=float('inf')
-        self.readClassifier('./pretrained_model/model_F_SVHN.tar')
-        self.create_distance_function_Tdomain()
 
-        l = min(len(self.s_train_loader),len(self.t_train_loader))-1
+        l = min(len(self.s_train_loader),len(self.t_train_loader))
 
+        g_loss = []
+        d_loss = []       
+        SVHN_count = 0
+        
         for epoch in range(num_epochs):
+            
             train_g_loss = 0
             train_d_loss = 0
-            
-            if epoch % 2 == 0:
-                    train_discrim = False
-                    train_gen = True
-            else:
-                    if epoch > start_discrim_after:
-                        train_discrim = True
-                        train_gen = False
-                    else:
-                        train_discrim = False
-                        train_gen = True
-                        
+           
             s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
             
-            visualize_i = np.random.randint(0,l)
-            vis_s = 0
-            vis_t = 0
+            training_batches = 0
+            train_discrim = True
             
+            d_count = 0
+            g_count = 0
+         
             for i in range(l):         
                 
-                if i == visualize_i:
-                    vis_s, s_labels = s_data_iter.next()
-                    vis_t, t_labels = t_data_iter.next()
-                    continue
+                if train_discrim :
+                    if training_batches < discrim_batches:
+                        training_batches += 1
+                    else:
+                        train_discrim = False
+                        training_batches = 1
+                else:
+                    if training_batches < gen_batches:
+                        training_batches += 1
+                    else:
+                        train_discrim = True
+                        training_batches = 1
+                                   
+                SVHN_count += 1               
+                if SVHN_count >= len(self.s_train_loader):
+                    SVHN_count = 0
+                    s_data_iter = iter(self.s_train_loader)
                     
                 s_data, s_labels = s_data_iter.next()
                 t_data, t_labels = t_data_iter.next()
@@ -263,53 +295,61 @@ class digits_model_test(BaseTest):
                 self.model['G'].zero_grad()
                 self.model['D'].zero_grad()
                 
-                t_data = torch.cat((t_data, t_data, t_data), 1)
+                t_data_3 = torch.cat((t_data, t_data, t_data), 1)
 
                 if not self.use_gpu:
                     s_data, s_labels = Variable(s_data.float()), Variable(s_labels.long())
                     t_data, t_labels = Variable(t_data.float()), Variable(t_labels.long())
+                    t_data_3 = Variable(t_data_3.float())
                 else:
                     s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
                     t_data, t_labels = Variable(t_data.float().cuda()), Variable(t_labels.long().cuda())
-                   
+                    t_data_3 = Variable(t_data_3.float()).cuda()
                     
-                t_F = self.model['F'](t_data)
+                t_F = self.model['F'](t_data_3)
                 t_D = self.model['D'](t_data)
-                s_F = self.model['F'](s_data)           
+                s_F = self.model['F'](s_data)
                 s_G = self.model['G'](s_F)
                 t_G = self.model['G'](t_F)
-                s_G_F = self.model['F'](s_G)
-                t_G_F = self.model['F'](t_G)
+                
+                s_G_3 = torch.cat((s_G,s_G,s_G),1)
+                t_G_3 = torch.cat((t_G,t_G,t_G),1)
+                s_G_F = self.model['F'](s_G_3)
+                t_G_F = self.model['F'](t_G_3)
                 t_D_G = self.model['D'](t_G)
                 s_D_G = self.model['D'](s_G)
+                
+                if i == 0:
+                    self.seeResults(s_G, t_data)   
    
-                generator_loss = self.g_loss_function(s_D_G, t_D_G, s_F, s_G_F, t_data, t_G, t_D,15,15,0)
+                generator_loss = self.g_loss_function(s_D_G, t_D_G, s_F, s_G_F, t_data, t_G,15,15,0)
                 
                 discriminator_loss = self.d_loss_function(s_D_G,t_D_G,t_D)
 
                 if train_discrim:
-                    discriminator_loss.backward() # TODO: probably don't need retain if alternating
+                    discriminator_loss.backward()
                     self.d_optimizer.step()
-                
-                if train_gen:
+                else:
                     generator_loss.backward()
-                    self.g_optimizer.step()
-                
-          
-                print('G',generator_loss.data[0])             
-                print('D',discriminator_loss.data[0])
-                train_g_loss += generator_loss.data[0]
-                train_d_loss += discriminator_loss.data[0]
-                
-            seeResults(vis_s,vis_t)
-
-            train_g_loss /= l
-            train_d_loss /= l
+                    self.g_optimizer.step() 
+                    
+                g_loss.append(train_g_loss)            
+                d_loss.append(train_d_loss)
             
-            print(epoch)
-            print(train_g_loss)
-            print(train_d_loss)
-           
+                train_d_loss += discriminator_loss.data[0]  
+                train_g_loss += generator_loss.data[0]
+            
+            train_g_loss = train_g_loss / l
+            train_d_loss = train_d_loss / l
+
+
+            print("Epoch %d: train_g_loss: %f train_d_loss %f" % (epoch, train_g_loss, train_d_loss))
+                    
+        plt.figure()
+        plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss',np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
+        plt.show()
+        
+        
 #             val_loss = self.validate(self, **kwargs)
 #             print(val_loss)
             

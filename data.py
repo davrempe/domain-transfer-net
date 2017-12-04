@@ -82,14 +82,14 @@ class SVHNDataset(Dataset):
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        #img = Image.fromarray(np.transpose(img, (1, 2, 0)))
+        img = Image.fromarray(np.transpose(img, (1, 2, 0)))
 
         if self.transform is not None:
             img = self.transform(img)
 
         if self.target_transform is not None:
             target = self.target_transform(target)
-
+        
         return img, target
 
     def __len__(self):
@@ -109,4 +109,22 @@ class MNIST_Transform(object):
         #rint(sample.shape)
         #ample_3 = torch.cat((sample, sample, sample), 1)
         return sample 
+    
+    
+class UnNormalize(object):
+    def __init__(self, mean, std):
+        self.mean = mean
+        self.std = std
 
+    def __call__(self, tensor):
+        """
+        Args:
+            tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
+        Returns:
+            Tensor: Normalized image.
+        """
+#         for i in range(tensor.shape[0]):
+        for t, m, s in zip(tensor, self.mean, self.std):
+            t.mul_(s).add_(m)
+            # The normalize code -> t.sub_(m).div_(s)
+        return tensor
