@@ -3,6 +3,7 @@ from base_test import BaseTest
 import digits_model
 import numpy as np
 import matplotlib.pyplot as plt
+import data
 
 import torch
 import torchvision
@@ -39,9 +40,10 @@ class digits_model_test(BaseTest):
     
     def create_data_loaders(self):
         
-        MNIST_transform = transforms.Compose([transforms.Pad(2),transforms.ToTensor()])
+        MNIST_transform = transforms.Compose([transforms.Pad(2),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
+        SVHN_transform = transform.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
         
-        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = transforms.ToTensor())
+        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
@@ -49,11 +51,11 @@ class digits_model_test(BaseTest):
         self.t_train_loader = torch.utils.data.DataLoader(t_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
-        s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = transforms.ToTensor())
+        s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
         self.s_val_loader = torch.utils.data.DataLoader(s_val_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
-        s_test_set = torchvision.datasets.SVHN(root = './SVHN/', split='test', download = True, transform = transforms.ToTensor())
+        s_test_set = torchvision.datasets.SVHN(root = './SVHN/', split='test', download = True, transform = SVHN_transform)
         self.s_test_loader = torch.utils.data.DataLoader(s_test_set, batch_size=128,
                                          shuffle=False, num_workers=8)
         
@@ -86,7 +88,7 @@ class digits_model_test(BaseTest):
             self.model['G'] = self.model['G'].cuda()    
             self.model['D'] = self.model['D'].cuda()
             
-        self.readClassifier('./pretrained_model/model_F_SVHN.tar')
+        self.readClassifier('./pretrained_model/model_F_SVHN_3.tar')
         
     def create_loss_function(self):
         
@@ -187,7 +189,12 @@ class digits_model_test(BaseTest):
         s_G = s_G.cpu()
         s_G = s_G.data
                 
-        npimg = torchvision.utils.make_grid(s_G[:16], nrow=4).numpy()
+        
+        # Unnormalize MNIST images
+        unnorm = data.UnNormalize((0.1307,), (0.3081,))
+        
+        npimg = torchvision.utils.make_grid(unnorm(s_G[:16]), nrow=4).numpy()
+#         print(unnorm(s_G[:16]))
         npimg = np.transpose(npimg, (1, 2, 0)) 
         zero_array = np.zeros(npimg.shape)
         one_array = np.ones(npimg.shape)
@@ -233,8 +240,8 @@ class digits_model_test(BaseTest):
         '''
         Trains the model.
         '''
-        discrim_batches = kwargs.get("discrim_batches", 5)        
-        gen_batches = kwargs.get("gen_batches", 1)
+        discrim_batches = kwargs.get("discrim_batches", 2)        
+        gen_batches = kwargs.get("gen_batches", 4)
 
         min_val_loss=float('inf')
 
@@ -254,6 +261,10 @@ class digits_model_test(BaseTest):
             
             training_batches = 0
             train_discrim = True
+            
+            d_count = 0
+            g_count = 0
+         
             for i in range(l):         
                 
                 if train_discrim :
@@ -310,7 +321,6 @@ class digits_model_test(BaseTest):
                 
                 if i == 0:
                     self.seeResults(s_G, t_data)   
-                    continue
    
                 generator_loss = self.g_loss_function(s_D_G, t_D_G, s_F, s_G_F, t_data, t_G,15,15,0)
                 
@@ -319,23 +329,24 @@ class digits_model_test(BaseTest):
                 if train_discrim:
                     discriminator_loss.backward()
                     self.d_optimizer.step()
-                    train_d_loss += discriminator_loss.data[0]                   
                 else:
                     generator_loss.backward()
-                    self.g_optimizer.step()
-                    train_g_loss += generator_loss.data[0]
+                    self.g_optimizer.step() 
                     
+                g_loss.append(train_g_loss)            
+                d_loss.append(train_d_loss)
+            
+                train_d_loss += discriminator_loss.data[0]  
+                train_g_loss += generator_loss.data[0]
+            
             train_g_loss = train_g_loss / l
             train_d_loss = train_d_loss / l
-            g_loss.append(train_g_loss)            
-            d_loss.append(train_d_loss)
+
 
             print("Epoch %d: train_g_loss: %f train_d_loss %f" % (epoch, train_g_loss, train_d_loss))
                     
         plt.figure()
-        e = np.arange(1,num_epochs+1)
-        plt.plot(e,g_loss, label = 'generator loss')
-        plt.plot(e,d_loss, label = 'discriminator loss')
+        plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss',np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
         plt.show()
         
         
