@@ -115,3 +115,47 @@ class D(nn.Module):
 		output1 = self.upblock(input)
 		output = self.downblock(output1)
 		return output
+    
+    
+    
+class new_G(nn.Module):
+    def __init__(self, channels, use_gpu = False):
+        super(self.__class__,self).__init__()
+        self.channels = channels
+        self.use_gpu = use_gpu
+        self.block = nn.Sequential(
+			# input channel will be 128
+			nn.ConvTranspose2d(self.channels, 512, kernel_size=(4,4), stride=1), # output:(batch_size, 512, 4, 4)  
+			nn.ConvTranspose2d(512, 256, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 256, 8, 8)
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+			nn.ConvTranspose2d(256, 128, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 128, 16, 16)
+            nn.BatchNorm1d(128),
+            nn.ReLU(inplace=True),
+			nn.ConvTranspose2d(128, 1, kernel_size=(4,4),stride=2, padding=1)
+#             nn.Tanh()
+        )
+    def forward(self,input):
+        output = self.block(input)
+        return output
+
+class new_D(nn.Module):
+	def __init__(self, channels,alpha=0.2):
+		super(self.__class__,self).__init__()
+		self.channels = channels
+		self.alpha = alpha
+		self.block = nn.Sequential(     
+			nn.Conv2d(1, 128, kernel_size=(3,3), stride=2,padding=1), # output:(batch_size, 128, 16, 16)
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
+			nn.Conv2d(128, 256, kernel_size=(3,3), stride=2, padding=1), # output:(batch_size, 256, 8, 8)
+            nn.BatchNorm2d(256),
+            nn.Conv2d(256, 512, kernel_size=(3,3), stride=2, padding=1), # output:(batch_size, 512, 4, 4)
+            nn.BatchNorm2d(512),
+            nn.Conv2d(512, 3, kernel_size=(4,4), stride = 2) # output:(batch_size, 1, 1, 1)
+        )
+
+	def forward(self, input):
+		output = self.block(input)
+		return output
+
