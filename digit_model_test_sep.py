@@ -295,11 +295,11 @@ class digits_model_test(BaseTest):
                 total_batches += 1
                
                 if not self.use_gpu:
-                    s_data, s_labels = Variable(s_data.float()), Variable(s_labels.long())
-                    t_data, t_labels = Variable(t_data.float()), Variable(t_labels.long())
+                    s_data = Variable(s_data.float())
+                    t_data = Variable(t_data.float())
                 else:
-                    s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
-                    t_data, t_labels = Variable(t_data.float().cuda()), Variable(t_labels.long().cuda())
+                    s_data = Variable(s_data.float().cuda())
+                    t_data = Variable(t_data.float().cuda())
                 
                 # train by feeding SVHN 
                 if total_batches > 1600:
@@ -338,7 +338,7 @@ class digits_model_test(BaseTest):
                     g_trg_loss = self.g_train_trg_runloss / self.g_train_trg_sum
                     self.log['d_train_src_loss'].append(d_src_loss)                   
                     self.log['g_train_src_loss'].append(g_src_loss)
-                    self.log['f_train_trg_loss'].append(f_src_loss)
+                    self.log['f_train_src_loss'].append(f_src_loss)
                     self.log['d_train_trg_loss'].append(d_trg_loss) 
                     self.log['g_train_trg_loss'].append(g_trg_loss)
                     self.d_train_src_sum = 0
@@ -352,14 +352,14 @@ class digits_model_test(BaseTest):
 
                     print("Epoch %d  batches %d" %(epoch, i))
                     print("d_src_loss: %f, g_src_loss %f, f_src_loss %f d_trg_loss %f, g_trg_loss %f" % (d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
+                
+                #if total_batches % test_batches == 0:
+                #    self.test_model()
                     
                 if total_batches % save_batches == 0:
                     self.log['best_model'] = self.model
                     checkpoint = './log/'+ str(int(time.time())) + '_' + str(epoch) + '_' + str(i) + '.tar'
                     torch.save(self.log, checkpoint)
-                
-                if total_batches % test_batches == 0:
-                    self.test_model()
 
 #             val_loss = self.validate(self, **kwargs)
 #             print(val_loss)
@@ -449,9 +449,14 @@ class digits_model_test(BaseTest):
         running_loss = 0
         s_data_iter = iter(self.s_test_loader)
 
-        for i in range(l):         
+        for i in range(len(s_data_iter)):         
 
             s_data, s_labels = s_data_iter.next()
+            s_labels = s_labels.numpy()
+            s_labels.squeeze()
+            np.place(s_labels, s_labels == 10, 0)
+            s_labels = torch.from_numpy(s_labels)
+
 
             # check terminal state in dataloader(iterator)
             if self.batch_size != s_data.size(0): continue
@@ -463,6 +468,9 @@ class digits_model_test(BaseTest):
 
             s_F = self.model['F'](s_data)
             s_G = self.model['G'](s_F)
+            
+            #print(s_labels.data.shape)
+
             
             outputs = self.model['MNIST_classifier'](s_G)
             loss = self.lossCE(outputs, s_labels)
