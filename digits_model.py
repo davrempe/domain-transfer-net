@@ -75,44 +75,45 @@ def conv_bn_lrelu(channels_in, channels_out, kernel, stride, padding, alpha, ReL
     return block
 
 class G(nn.Module):
-    def __init__(self, channels, use_gpu = False):
-        super(self.__class__,self).__init__()
-        self.channels = channels
-        self.use_gpu = use_gpu
-        self.block = nn.Sequential(
+	def __init__(self, channels, use_gpu = False):
+		super(self.__class__,self).__init__()
+		self.channels = channels
+		self.block = nn.Sequential(
 			# input channel will be 128
-			nn.ConvTranspose2d(self.channels, 512, kernel_size=(4,4), stride=2), # output:(batch_size, 512, 4, 4)  
-			nn.ConvTranspose2d(512, 256, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 256, 8, 8)
-            nn.BatchNorm2d(256),
+			nn.ConvTranspose2d(self.channels, self.channels*2, kernel_size=(4,4), stride=1),
+			nn.ConvTranspose2d(self.channels*2, self.channels, kernel_size=(4,4), stride=2, padding=1),
+            nn.BatchNorm1d(self.channels),
             nn.ReLU(inplace=True),
-			nn.ConvTranspose2d(256, 128, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 128, 16, 16)
-            nn.BatchNorm1d(128),
+			nn.ConvTranspose2d(self.channels, self.channels//2, kernel_size=(4,4), stride=2, padding=1),
+            nn.BatchNorm1d(self.channels//2),
             nn.ReLU(inplace=True),
-			nn.ConvTranspose2d(128, 1, kernel_size=(4,4),stride=2, padding=1),
-            nn.Tanh()
-        )
-    def forward(self,input):
-        output = self.block(input)
-        return output
+			nn.ConvTranspose2d(self.channels//2, 1, kernel_size=(4,4),stride=2,padding=1),
+			)
+	def forward(self,input):
+		output = self.block(input)
+		return output
 
 class D(nn.Module):
 	def __init__(self, channels,alpha=0.2):
 		super(self.__class__,self).__init__()
 		self.channels = channels
 		self.alpha = alpha
-		self.block = nn.Sequential(     
-			nn.Conv2d(1, 128, kernel_size=(3,3), stride=2,padding=1), # output:(batch_size, 128, 16, 16)
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-			nn.Conv2d(128, 256, kernel_size=(3,3), stride=2, padding=1), # output:(batch_size, 256, 8, 8)
-            nn.BatchNorm2d(256),
-            nn.Conv2d(256, 512, kernel_size=(3,3), stride=2, padding=1), # output:(batch_size, 512, 4, 4)
-            nn.BatchNorm2d(512),
-            nn.Conv2d(512, 3, kernel_size=(4,4), stride = 2) # output:(batch_size, 1, 1, 1)
+		self.upblock = nn.Sequential(
+			nn.Conv2d(1, 64, kernel_size=(4,4), stride=2, padding=1),
+			conv_bn_lrelu(64, self.channels, (4,4), 2, 1, self.alpha, ReLU = False),
+			conv_bn_lrelu(self.channels,self.channels*2,(4,4),2,1,self.alpha, ReLU = True)
+# 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha),
+# 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha) 
         )
-
+		self.downblock = nn.Sequential(
+			nn.Conv2d(self.channels*2,self.channels,(4,4),1, 0),
+            nn.LeakyReLU(self.alpha,inplace=True),
+			nn.Conv2d(self.channels,3,(1,1),1,0),
+            nn.ReLU(inplace=True)
+        )
 	def forward(self, input):
-		output = self.block(input)
+		output1 = self.upblock(input)
+		output = self.downblock(output1)
 		return output
     
     
