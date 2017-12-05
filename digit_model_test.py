@@ -40,10 +40,10 @@ class digits_model_test(BaseTest):
     
     def create_data_loaders(self):
         
-        MNIST_transform = transforms.Compose([transforms.Pad(2),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
-        SVHN_transform = transform.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        MNIST_transform = transforms.Compose([transforms.Scale(32),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
+        SVHN_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
         
-        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
+        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
@@ -51,9 +51,9 @@ class digits_model_test(BaseTest):
         self.t_train_loader = torch.utils.data.DataLoader(t_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
-        s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
-        self.s_val_loader = torch.utils.data.DataLoader(s_val_set, batch_size=128,
-                                          shuffle=True, num_workers=8)
+#         s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
+#         self.s_val_loader = torch.utils.data.DataLoader(s_val_set, batch_size=128,
+#                                           shuffle=True, num_workers=8)
 
         s_test_set = torchvision.datasets.SVHN(root = './SVHN/', split='test', download = True, transform = SVHN_transform)
         self.s_test_loader = torch.utils.data.DataLoader(s_test_set, batch_size=128,
@@ -72,9 +72,17 @@ class digits_model_test(BaseTest):
         images_s, labels_s= dataiter_s.next()        
         
         dataiter_t = iter(self.t_train_loader)
-        images_t, labels_t = dataiter_t.next()        
+        images_t, labels_t = dataiter_t.next()   
         
-        imshow(torchvision.utils.make_grid(images_s[:8], nrow=4, padding=3))
+        np.set_printoptions(threshold=np.nan)
+        print(images_t[1].squeeze().numpy())
+        unnorm = data.UnNormalize((0.1307,), (0.3081,))
+#         print(unnorm(images_t[:8]))
+        img = torchvision.utils.make_grid(unnorm(images_t)[:16], nrow=4)
+
+        npimg = img.numpy()
+        print(img)
+        plt.imshow(np.transpose(npimg, (1, 2, 0))) 
        
     def create_model(self):
         '''
@@ -214,7 +222,6 @@ class digits_model_test(BaseTest):
             label_1.data.resize_(self.batch_size).fill_(1)
             label_2.data.resize_(self.batch_size).fill_(2)
            
-
             LGang_1 = self.lossCE(s_D_G.squeeze(),label_2)
             LGang_2 = self.lossCE(t_D_G.squeeze(),label_2)
             LGang = LGang_1 + LGang_2
@@ -312,6 +319,7 @@ class digits_model_test(BaseTest):
                 s_G = self.model['G'](s_F)
                 t_G = self.model['G'](t_F)
                 
+                
                 s_G_3 = torch.cat((s_G,s_G,s_G),1)
                 t_G_3 = torch.cat((t_G,t_G,t_G),1)
                 s_G_F = self.model['F'](s_G_3)
@@ -346,7 +354,8 @@ class digits_model_test(BaseTest):
             print("Epoch %d: train_g_loss: %f train_d_loss %f" % (epoch, train_g_loss, train_d_loss))
                     
         plt.figure()
-        plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss',np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
+        plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss')
+        ptl.plot(np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
         plt.show()
         
         
