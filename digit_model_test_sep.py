@@ -12,13 +12,8 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.transforms as transforms
 import time
-
-
-def imshow(img):
-        npimg = img.numpy()
-        plt.imshow(np.transpose(npimg, (1, 2, 0)))   
-       
-        
+  
+               
 class digits_model_test(BaseTest):
     '''
     Abstract class that outlines how a network test case should be defined.
@@ -73,7 +68,9 @@ class digits_model_test(BaseTest):
         dataiter_t = iter(self.t_train_loader)
         images_t, labels_t = dataiter_t.next()        
         
-        imshow(torchvision.utils.make_grid(images_t[:8], nrow=4, padding=3))
+        img = torchvision.utils.make_grid(images_s[:8], nrow=4, padding=3)
+        npimg = img.numpy()
+        plt.imshow(np.transpose(npimg, (1, 2, 0))) 
        
     def create_model(self):
         '''
@@ -167,15 +164,19 @@ class digits_model_test(BaseTest):
         self.model['G'].train()
         return val_loss
    
-    def seeResults(self, s_G):     
-        s_G = s_G.cpu()
-        s_G = s_G.data
+    def seeResults(self, s_data, s_G):     
+        s_data = s_data.cpu().data
+        s_G = s_G.cpu().data
                 
         # Unnormalize MNIST images
-        unnorm = data.UnNormalize((0.1307,), (0.3081,))
-        
-        npimg = torchvision.utils.make_grid(unnorm(s_G[:16]), nrow=4).numpy()
-#         print(unnorm(s_G[:16]))
+        unnorm_SVHN = data.UnNormalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+        unnorm_MNIST = data.UnNormalize((0.1307,), (0.3081,))
+        self.imshow(unnorm_SVHN(s_data[:16]))
+        self.imshow(unnorm_MNIST(s_G[:16]))
+    
+    def imshow(self, img):
+        plt.figure()
+        npimg = torchvision.utils.make_grid(img, nrow=4).numpy()
         npimg = np.transpose(npimg, (1, 2, 0)) 
         zero_array = np.zeros(npimg.shape)
         one_array = np.ones(npimg.shape)
@@ -326,7 +327,7 @@ class digits_model_test(BaseTest):
                 if total_batches % visualize_batches == 0:
                     s_F = self.model['F'](s_data)
                     s_G = self.model['G'](s_F)
-                    self.seeResults(s_G)   
+                    self.seeResults(s_data, s_G)   
         
                     d_src_loss = self.d_train_src_runloss / self.d_train_src_sum
                     g_src_loss = self.g_train_src_runloss / self.g_train_src_sum
@@ -353,8 +354,8 @@ class digits_model_test(BaseTest):
                     print("Epoch %d  batches %d" %(epoch, i))
                     print("d_src_loss: %f, g_src_loss %f, f_src_loss %f d_trg_loss %f, g_trg_loss %f" % (d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
                 
-                #if total_batches % test_batches == 0:
-                #    self.test_model()
+                if total_batches % test_batches == 0:
+                    self.test_model()
                     
                 if total_batches % save_batches == 0:
                     self.log['best_model'] = self.model
@@ -452,8 +453,7 @@ class digits_model_test(BaseTest):
         for i in range(len(s_data_iter)):         
 
             s_data, s_labels = s_data_iter.next()
-            s_labels = s_labels.numpy()
-            s_labels.squeeze()
+            s_labels = s_labels.numpy().squeeze()
             np.place(s_labels, s_labels == 10, 0)
             s_labels = torch.from_numpy(s_labels)
 
@@ -469,21 +469,21 @@ class digits_model_test(BaseTest):
             s_F = self.model['F'](s_data)
             s_G = self.model['G'](s_F)
             
-            #print(s_labels.data.shape)
-
+            if i == 0:
+                self.seeResults(s_data, s_G)   
             
             outputs = self.model['MNIST_classifier'](s_G)
             loss = self.lossCE(outputs, s_labels)
             running_loss += loss.data[0]
-            total += labels.size(0)
+            total += s_labels.size(0)
             _, predicted = torch.max(outputs.data, 1)
             correct += (predicted == s_labels.data).sum()
 
-            accuracy = 1. * correct / total
-            running_loss /= total
-            print('Test on MNIST classifier\n  loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * accuracy))
-            self.log['test_loss'].append(running_loss)
-            self.log['test_accuracy'].append(correct)
+        accuracy = 1. * correct / total
+        running_loss /= total
+        print('Test on MNIST classifier\n  loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * accuracy))
+        self.log['test_loss'].append(running_loss)
+        self.log['test_accuracy'].append(correct)
 
 
 # TODO!!!

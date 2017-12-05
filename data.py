@@ -96,19 +96,6 @@ class SVHNDataset(Dataset):
     def __len__(self):
         return len(self.data)
     
-class MNIST_Transform(object):
-    """Rescale the image in a sample to a given size.
-
-    Args:
-        output_size (tuple or tuple): Desired output size. If tuple, output is
-            matched to output_size. If int, smaller of image edges is matched
-            to output_size keeping aspect ratio the same.
-    """
-    def __call__(self, sample):
-        #rint(sample.shape)
-        #ample_3 = torch.cat((sample, sample, sample), 1)
-        return sample 
-
 class EmojiDataset(Dataset):
     '''
     Dataset of 1 million bitmoji images.
