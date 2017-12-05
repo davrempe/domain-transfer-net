@@ -11,7 +11,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.transforms as transforms
-
+import time
 
 
 def imshow(img):
@@ -120,6 +120,7 @@ class digits_model_test(BaseTest):
         self.create_distance_function_Tdomain()
         self.create_discriminator_loss_function()
         self.create_generator_loss_function()
+        self.create_encoder_loss_function()
 
     def create_optimizer(self):
         '''
@@ -242,8 +243,8 @@ class digits_model_test(BaseTest):
         '''
         Trains the model.
         '''
-        discrim_batches = kwargs.get("discrim_batches", 2)        
-        gen_batches = kwargs.get("gen_batches", 4)
+        visualize_batches = kwargs.get("visualize_batches", 50)        
+        save_batches = kwargs.get("save_batches", 200)
 
         min_val_loss=float('inf')
 
@@ -294,18 +295,12 @@ class digits_model_test(BaseTest):
                 else:
                     s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
                     t_data, t_labels = Variable(t_data.float().cuda()), Variable(t_labels.long().cuda())
-                   
-                
-                if i == 0:
-                    s_F = self.model['F'](s_data)
-                    s_G = self.model['G'](s_F)
-                    self.seeResults(s_G)   
                 
                 # train by feeding SVHN 
                 if total_batches > 1600:
                     F_interval = 30
                 if total_batches % F_interval == 0:
-                    f_train_src(s_F, s_G_F)
+                    self.f_train_src(s_data)
 
                 self.d_train_src(s_data)
                 self.g_train_src(s_data)
@@ -322,21 +317,47 @@ class digits_model_test(BaseTest):
                 self.g_train_trg(t_data)
                 self.g_train_trg(t_data)
                 self.g_train_trg(t_data)
+                
+                if i % visualize_batches == 0:
+                    s_F = self.model['F'](s_data)
+                    s_G = self.model['G'](s_F)
+                    self.seeResults(s_G)   
+        
+                    d_src_loss = self.d_train_src_runloss / self.d_train_src_sum
+                    g_src_loss = self.g_train_src_runloss / self.g_train_src_sum
+                    if self.f_train_src_sum != 0:
+                        f_src_loss = self.f_train_src_runloss / self.f_train_src_sum
+                    else:
+                        f_src_loss = 0
+                    d_trg_loss = self.d_train_trg_runloss / self.d_train_trg_sum
+                    g_trg_loss = self.g_train_trg_runloss / self.g_train_trg_sum
+                    d_train_src_loss.append(d_src_loss)                    
+                    g_train_src_loss.append(g_src_loss)
+                    f_train_src_loss.append(f_src_loss)
+                    d_train_trg_loss.append(d_trg_loss)                    
+                    g_train_trg_loss.append(g_trg_loss)
+                    self.d_train_src_sum = 0
+                    self.g_train_src_sum = 0
+                    self.d_train_trg_sum = 0
+                    self.g_train_trg_sum = 0
+                    self.d_train_src_runloss = 0
+                    self.g_train_src_runloss = 0
+                    self.d_train_trg_runloss = 0
+                    self.g_train_trg_runloss = 0
 
-            d_src_loss = self.d_train_src_runloss / self.d_train_src_sum
-            g_src_loss = self.g_train_src_runloss / self.g_train_src_sum
-            f_src_loss = self.f_train_src_runloss / self.f_train_src_sum
-            d_trg_loss = self.d_train_trg_runloss / self.d_train_trg_sum
-            g_trg_loss = self.g_train_trg_runloss / self.g_train_trg_sum
-
-            print("Epoch %d: d_src_loss: %f, g_src_loss %f, f_src_loss %f\n \
-                d_trg_loss %f, g_trg_loss %f" % (epoch, d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
+                    print("Epoch %d  batches %d" %(epoch, i))
+                    print("d_src_loss: %f, g_src_loss %f, f_src_loss %f d_trg_loss %f, g_trg_loss %f" % (d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
                     
-        #plt.figure()
-        #plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss',np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
-        #plt.show()
-        
-        
+                if total_batches % save_batches == 0:
+                    self.log['model'] = self.model
+                    self.log['d_train_src_loss'] = d_train_src_loss                    
+                    self.log['g_train_src_loss'] = g_train_src_loss
+                    self.log['f_train_trg_loss'] = f_train_src_loss
+                    self.log['d_train_trg_loss'] = d_train_trg_loss
+                    self.log['g_train_trg_loss'] = g_train_trg_loss
+                    checkpoint = './log/'+ str(int(time.time())) + '_' + str(epoch) + '_' + str(i) + '.tar'
+                    torch.save(self.log, checkpoint)
+
 #             val_loss = self.validate(self, **kwargs)
 #             print(val_loss)
             
