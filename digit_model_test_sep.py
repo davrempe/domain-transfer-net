@@ -202,13 +202,13 @@ class digits_model_test(BaseTest):
 
         self.g_train_src_loss_function = g_train_src_loss_function
 
-        def g_train_tgr_loss_function(t, t_G, t_D_G):
+        def g_train_trg_loss_function(t, t_G, t_D_G):
            
             L_g = self.lossCE(t_D_G.squeeze(), self.label_2)
             LTID = self.distance_Tdomain(t_G, t.detach())
             return L_g + LTID * 15
 
-        self.g_train_tgr_loss_function = g_train_tgr_loss_function
+        self.g_train_trg_loss_function = g_train_trg_loss_function
 
     def create_discriminator_loss_function(self):
         '''
@@ -223,12 +223,12 @@ class digits_model_test(BaseTest):
         
         self.d_train_src_loss_function = d_train_src_loss_function
 
-        def d_train_tgr_loss_function(t_D, t_D_G):
+        def d_train_trg_loss_function(t_D, t_D_G):
 
             L_d = self.lossCE(t_D_G.squeeze(), self.label_1)+self.lossCE(t_D.squeeze(), self.label_2)
             return L_d
         
-        self.d_train_tgr_loss_function = d_train_tgr_loss_function
+        self.d_train_trg_loss_function = d_train_trg_loss_function
 
     def create_distance_function_Tdomain(self):
         # define a distance function in T
@@ -252,8 +252,8 @@ class digits_model_test(BaseTest):
         d_train_src_loss = []
         g_train_src_loss = []
         f_train_src_loss = []
-        d_train_tgr_loss = []
-        g_train_tgr_loss = []
+        d_train_trg_loss = []
+        g_train_trg_loss = []
         SVHN_count = 0
         F_interval = 15
         total_batches = 0
@@ -263,13 +263,13 @@ class digits_model_test(BaseTest):
             self.d_train_src_sum = 0
             self.g_train_src_sum = 0
             self.f_train_src_sum = 0
-            self.d_train_tgr_sum = 0
-            self.g_train_tgr_sum = 0
+            self.d_train_trg_sum = 0
+            self.g_train_trg_sum = 0
             self.d_train_src_runloss = 0
             self.g_train_src_runloss = 0
             self.f_train_src_runloss = 0
-            self.d_train_tgr_runloss = 0
-            self.g_train_tgr_runloss = 0
+            self.d_train_trg_runloss = 0
+            self.g_train_trg_runloss = 0
            
             s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
@@ -326,11 +326,11 @@ class digits_model_test(BaseTest):
             d_src_loss = self.d_train_src_runloss / self.d_train_src_sum
             g_src_loss = self.g_train_src_runloss / self.g_train_src_sum
             f_src_loss = self.f_train_src_runloss / self.f_train_src_sum
-            d_tgr_loss = self.d_train_tgr_runloss / self.d_train_tgr_sum
-            g_tgr_loss = self.g_train_tgr_runloss / self.g_train_tgr_sum
+            d_trg_loss = self.d_train_trg_runloss / self.d_train_trg_sum
+            g_trg_loss = self.g_train_trg_runloss / self.g_train_trg_sum
 
             print("Epoch %d: d_src_loss: %f, g_src_loss %f, f_src_loss %f\n \
-                d_tgr_loss %f, g_tgr_loss %f" % (epoch, d_src_loss, g_src_loss, f_src_loss, d_tgr_loss, g_tgr_loss))
+                d_trg_loss %f, g_trg_loss %f" % (epoch, d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
                     
         #plt.figure()
         #plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss',np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
@@ -391,30 +391,30 @@ class digits_model_test(BaseTest):
         self.f_train_src_runloss += loss.data[0]
         self.f_train_src_sum += 1  
 
-    def d_train_tgr(self, t_data):
+    def d_train_trg(self, t_data):
         self.model['D'].zero_grad()
         t_data_3 = torch.cat((t_data,t_data,t_data),1) 
         t_F = self.model['F'](t_data_3)
         t_D = self.model['D'](t_data)
         t_G = self.model['G'](t_F)
         t_D_G = self.model['D'](t_G)
-        loss = self.d_train_tgr_loss_function(t_D, t_D_G)
+        loss = self.d_train_trg_loss_function(t_D, t_D_G)
         loss.backward()
         self.d_optimizer.step()
-        self.d_train_tgr_runloss += loss.data[0]
-        self.d_train_tgr_sum += 1  
+        self.d_train_trg_runloss += loss.data[0]
+        self.d_train_trg_sum += 1  
 
-    def g_train_tgr(self, t_data):
+    def g_train_trg(self, t_data):
         self.model['G'].zero_grad()
         t_data_3 = torch.cat((t_data,t_data,t_data),1) 
         t_F = self.model['F'](t_data_3)
         t_G = self.model['G'](t_F)
         t_D_G = self.model['D'](t_G)
-        loss = self.g_train_tgr_loss_function(t_data, t_G, t_D_G)
+        loss = self.g_train_trg_loss_function(t_data, t_G, t_D_G)
         loss.backward()
         self.g_optimizer.step()
-        self.g_train_tgr_runloss += loss.data[0]
-        self.g_train_tgr_sum += 1  
+        self.g_train_trg_runloss += loss.data[0]
+        self.g_train_trg_sum += 1  
 
 
 # TODO!!!
