@@ -1,5 +1,6 @@
 import os
 from torch.utils.data import Dataset, DataLoader
+import csv
 from PIL import Image
 import numpy as np
 import torch
@@ -94,8 +95,6 @@ class SVHNDataset(Dataset):
 
     def __len__(self):
         return len(self.data)
-
-    
     
 class MNIST_Transform(object):
     """Rescale the image in a sample to a given size.
@@ -109,9 +108,114 @@ class MNIST_Transform(object):
         #rint(sample.shape)
         #ample_3 = torch.cat((sample, sample, sample), 1)
         return sample 
+
+class CelebADataset(Dataset):
+    '''
+    CelebA face image dataset. This is the aligned and cropped version. 
+    data_dir - directory of image data
+    ann_dir - directory of annotation data
+    split - either 'train', 'eval', or 'test'
+    '''
+    def __init__(self, data_dir, ann_dir, split, transform=None):
+                
+        data_splits = ['train', 'eval', 'test']
+        self.data_dir = data_dir
+        self.transform = transform
+        
+        split = data_splits.index(split)
+        split_data = []
+        with open(os.path.join(ann_dir, 'list_eval_partition.txt')) as split_file:
+            reader = csv.reader(split_file, delimiter=' ')
+            for row in reader:
+                split_data.append(row)
+        bbox_data = []
+        with open(os.path.join(ann_dir, 'list_bbox_celeba.txt')) as bbox_file:
+            reader = csv.reader(bbox_file, delimiter=' ', skipinitialspace=True)
+            test_row = next(reader) # header row
+            test_row = next(reader) # header row
+            for row in reader:
+                bbox_data.append(row)
+                
+        split_data = np.array(split_data)
+        bbox_data = np.array(bbox_data)
+        split_inds = np.where(split_data[:,1] == str(split))[0]
+        
+        self.split_info = split_data[split_inds, :]
+        self.bbox_info = bbox_data[split_inds, :]
+        self.data_len = self.split_info.shape[0]
+
+    def __getitem__(self, idx):
+        """
+        Args:
+            index (int): Index
+        """
+        img_name = os.path.join(self.data_dir, self.split_info[idx, 0])
+        img = Image.open(img_name)
+        
+        if self.transform is not None:
+            img = self.transform(img)
+                           
+        return img
+
+    def __len__(self):
+        return self.data_len
     
+class MSCeleb1MDataset(Dataset):
+    '''
+    MS-Celeb-1M face image dataset. This is the aligned and cropped version. 
+    data_dir - directory of data. This directory should contain annotation files and a subdirectory for image data.
+    split - either 'train' or 'test'
+    '''
+    def __init__(self, data_dir, split, transform=None):
+        data_splits = ['train', 'test']
+        self.transform = transform
+        
+        split = data_splits.index(split)
+        if split == 0:
+            info_path = 'train_data_info.txt'
+            self.data_path = os.path.join(data_dir, 'images_train/')
+        elif split == 1:
+            info_path = 'test_data_info.txt'
+            self.data_path = os.path.join(data_dir, 'images_test/')
+        
+        info_data = []
+        with open(os.path.join(data_dir, info_path)) as info_file:
+            reader = csv.reader(info_file, delimiter=' ')
+            for row in reader:
+                info_data.append(row)
+                
+        self.info = np.array(info_data)
+        self.data_len = self.info.shape[0]
+
+    def __getitem__(self, idx):
+        """
+        Args:
+            index (int): Index
+        """
+        img_name = os.path.join(self.data_path, self.info[idx, 0])
+        img = Image.open(img_name)
+        
+        if self.transform is not None:
+            img = self.transform(img)
+                       
+        return img
+
+    def __len__(self):
+        return self.data_len
+    
+class ResizeTransform(object):
+    ''' Resizes a PIL image to (size, size) to feed into OpenFace net and returns a torch tensor.'''
+    def __init__(self, size):
+        self.size = size
+        
+    def __call__(self, sample):
+        img = sample.resize((self.size, self.size), Image.BILINEAR)
+        img = np.transpose(img, (2, 0, 1))
+        img = img.astype(np.float32) / 255.0
+        return torch.from_numpy(img)
     
 class UnNormalize(object):
+    ''' from https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/3'''
     def __init__(self, mean, std):
         self.mean = mean
         self.std = std
@@ -123,7 +227,6 @@ class UnNormalize(object):
         Returns:
             Tensor: Normalized image.
         """
-#         for i in range(tensor.shape[0]):
         for t, m, s in zip(tensor, self.mean, self.std):
             t.mul_(s).add_(m)
             # The normalize code -> t.sub_(m).div_(s)

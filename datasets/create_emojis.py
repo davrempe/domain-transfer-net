@@ -7,7 +7,7 @@ import props as pr
 
 DEBUG = False
 
-num_emojis = 10000
+num_emojis = 1000
 
 MALE = 1
 FEMALE = 2
