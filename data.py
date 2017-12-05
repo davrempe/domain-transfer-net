@@ -128,7 +128,7 @@ class EmojiDataset(Dataset):
         img_name = os.path.join(self.data_dir, 'emoji_{}.png'.format(idx))
         img = Image.open(img_name)
         img = img.convert('RGB') # b/c it's a png
-        
+
         if self.transform is not None:
             img = self.transform(img)
                                    
