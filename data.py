@@ -109,6 +109,34 @@ class MNIST_Transform(object):
         #ample_3 = torch.cat((sample, sample, sample), 1)
         return sample 
 
+class EmojiDataset(Dataset):
+    '''
+    Dataset of 1 million bitmoji images.
+    start_idx - image number dataset should start at
+    end_idx - data number where dataset ends
+    '''
+    def __init__(self, data_dir, start_idx=0, end_idx=1000000, transform=None):
+        self.data_dir = data_dir
+        self.transform = transform
+        self.data_len = end_idx - start_idx
+    
+    def __getitem__(self, idx):
+        """
+        Args:
+            index (int): Index
+        """
+        img_name = os.path.join(self.data_dir, 'emoji_{}.png'.format(idx))
+        img = Image.open(img_name)
+        img = img.convert('RGB') # b/c it's a png
+        
+        if self.transform is not None:
+            img = self.transform(img)
+                                   
+        return img
+
+    def __len__(self):
+        return self.data_len    
+
 class CelebADataset(Dataset):
     '''
     CelebA face image dataset. This is the aligned and cropped version. 
