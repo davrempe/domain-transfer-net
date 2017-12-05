@@ -12,50 +12,34 @@ from torch.autograd import Variable
 import torch.nn as nn
 from torchvision import datasets, transforms
 
-def imshow(img):
-        npimg = img.numpy()
-        plt.imshow(np.transpose(npimg, (1, 2, 0)))        
-    
 class classifierFTest(BaseTest):
     
-    def __init__(self, use_gpu=True):
+    def __init__(self, use_gpu=True, isSVHN=True):
         super(self.__class__, self).__init__(use_gpu)
         self.log['train_accuracy'] = []        
         self.log['val_accuracy'] = []
+        self.isSVHN = isSVHN
 
     
-    def create_data_loaders(self, isSVHN):
+    def create_data_loaders(self):
+        SVHN_transform =transforms.Compose([transforms.Scale(32,32),transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        
+        MNIST_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)) ])
+        
         #SVHN
-        if isSVHN:
-            train_set = SVHNDataset(split='extra', transform=transforms.Compose([
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
-                    ]))
-            self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256,
-                                              shuffle=True, num_workers=8)
-            test_set = SVHNDataset(split='test', transform=transforms.Compose([
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
-                    ]))
-            self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128,
-                                          shuffle=False, num_workers=8)
+        if self.isSVHN:
+            train_set = SVHNDataset(split='extra', transform=SVHN_transform)
+            self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256, shuffle=True, num_workers=8)
+            
+            test_set = SVHNDataset(split='test', transform=SVHN_transform)
+            self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128, shuffle=False, num_workers=8)
         #MNIST
         else:
-            self.train_loader = torch.utils.data.DataLoader(
-                    datasets.MNIST('./MNIST', train=True, download=True,
-                    transform=transforms.Compose([
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.1307,), (0.3081,))
-                    ])),
-                    batch_size=256, shuffle=True, num_workers=8)
-
-            self.test_loader = torch.utils.data.DataLoader(
-                    datasets.MNIST('./MNIST', train=False, 
-                    transform=transforms.Compose([
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.1307,), (0.3081,))
-                    ])),
-                    batch_size=128, shuffle=False, num_workers=8)
+            train_set = datasets.MNIST(root='./MNIST/', train=True, download = True, transform = MNIST_transform)
+            self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256, shuffle=True, num_workers=8)
+            
+            test_set = datasets.MNIST(root='./MNIST/', train=False, download = True, transform = MNIST_transform)
+            self.test_loader = torch.utils.data.DataLoader(test_set, batch_size=128, shuffle=False, num_workers=8)
 
     def visualize_single_batch(self):
         # get some random training images
@@ -64,19 +48,24 @@ class classifierFTest(BaseTest):
         print(images.shape)
         
         # show images
-        imshow(torchvision.utils.make_grid(images))
+        img = torchvision.utils.make_grid(images[:16], nrow=4)
+        npimg = img.numpy()
+        plt.imshow(np.transpose(npimg, (1, 2, 0)))
         
     def create_model(self):
-        self.model = digits_model.F(3, self.use_gpu)
+        if self.isSVHN:
+            self.model = digits_model.F(3, self.use_gpu)
+        else:
+            self.model = digits_model.F(1, self.use_gpu)
     
     def create_loss_function(self):
         self.loss_function = nn.CrossEntropyLoss()
-        if self.use_gpu:
-            self.loss_function.type(torch.cuda.FloatTensor)
+        #if self.use_gpu:
+        #    self.loss_function.type(torch.cuda.FloatTensor)
 
     def create_optimizer(self):
         #self.optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
-        self.optimizer = optim.RMSprop(self.model.parameters(), lr = 0.001)
+        self.optimizer = optim.Adam(self.model.parameters(), lr = 0.001)
     
     def train_model(self, num_epochs, **kwargs):
         for epoch in range(num_epochs):  # loop over the dataset multiple times
@@ -112,11 +101,16 @@ class classifierFTest(BaseTest):
                 correct += (predicted == labels.data).sum()
 
             correct = 1. * correct / total
-            print('[%dth epoch]' % (epoch + 1))
+            print('[%dth epoch]' % (epoch))
             print('training loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * correct))
             self.log['train_loss'].append(running_loss)
             self.log['train_accuracy'].append(correct)
             self.log['best_model'] = self.model
+            if self.isSVHN:
+                checkpoint = './log/SVHN_' + str(epoch) + '.tar'
+            else:
+                checkpoint = './log/MNIST_' + str(epoch) + '.tar'
+            torch.save(self.log, checkpoint)
             self.test_model()
 
         print('Finished Training')

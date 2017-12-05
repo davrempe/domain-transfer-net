@@ -88,6 +88,10 @@ class digits_model_test(BaseTest):
             self.model['D'] = self.model['D'].cuda()
             
         self.readClassifier('./pretrained_model/model_F_SVHN_3.tar')
+        
+        #Test
+        model = torch.load('./pretrained_model/model_classifier_MNIST.tar')
+        self.model['MNIST_classifier'] = model['best_model']
 
     def readClassifier(self, model_name):
 
@@ -121,7 +125,7 @@ class digits_model_test(BaseTest):
         self.create_discriminator_loss_function()
         self.create_generator_loss_function()
         self.create_encoder_loss_function()
-
+        
     def create_optimizer(self):
         '''
         Creates and saves the optimizer to use for training.
@@ -138,12 +142,7 @@ class digits_model_test(BaseTest):
         f_lr = 3e-3
         f_reg = 1e-6
         self.f_optimizer = optim.Adam(self.model['F'].parameters(), lr=f_lr, weight_decay=f_reg)
-    
-    def test_model(self):
-        '''
-        Tests the model and returns the loss.
-        '''
-        pass
+            
         
     def validate(self, **kwargs):
         '''
@@ -244,17 +243,23 @@ class digits_model_test(BaseTest):
         Trains the model.
         '''
         visualize_batches = kwargs.get("visualize_batches", 50)        
-        save_batches = kwargs.get("save_batches", 200)
+        save_batches = kwargs.get("save_batches", 200)        
+        test_batches = kwargs.get("test_batches", 200)
+
 
         min_val_loss=float('inf')
 
         l = min(len(self.s_train_loader),len(self.t_train_loader))
 
-        d_train_src_loss = []
-        g_train_src_loss = []
-        f_train_src_loss = []
-        d_train_trg_loss = []
-        g_train_trg_loss = []
+        self.log['d_train_src_loss'] = []
+        self.log['g_train_src_loss'] = []
+        self.log['f_train_src_loss'] = []
+        self.log['d_train_trg_loss'] = []
+        self.log['g_train_trg_loss'] = []        
+        self.log['test_loss'] = []
+        self.log['test_accuracy'] = []
+        self.log['test_batches'] = test_batches
+
         SVHN_count = 0
         F_interval = 15
         total_batches = 0
@@ -318,7 +323,7 @@ class digits_model_test(BaseTest):
                 self.g_train_trg(t_data)
                 self.g_train_trg(t_data)
                 
-                if i % visualize_batches == 0:
+                if total_batches % visualize_batches == 0:
                     s_F = self.model['F'](s_data)
                     s_G = self.model['G'](s_F)
                     self.seeResults(s_G)   
@@ -331,11 +336,11 @@ class digits_model_test(BaseTest):
                         f_src_loss = 0
                     d_trg_loss = self.d_train_trg_runloss / self.d_train_trg_sum
                     g_trg_loss = self.g_train_trg_runloss / self.g_train_trg_sum
-                    d_train_src_loss.append(d_src_loss)                    
-                    g_train_src_loss.append(g_src_loss)
-                    f_train_src_loss.append(f_src_loss)
-                    d_train_trg_loss.append(d_trg_loss)                    
-                    g_train_trg_loss.append(g_trg_loss)
+                    self.log['d_train_src_loss'].append(d_src_loss)                   
+                    self.log['g_train_src_loss'].append(g_src_loss)
+                    self.log['f_train_trg_loss'].append(f_src_loss)
+                    self.log['d_train_trg_loss'].append(d_trg_loss) 
+                    self.log['g_train_trg_loss'].append(g_trg_loss)
                     self.d_train_src_sum = 0
                     self.g_train_src_sum = 0
                     self.d_train_trg_sum = 0
@@ -349,14 +354,12 @@ class digits_model_test(BaseTest):
                     print("d_src_loss: %f, g_src_loss %f, f_src_loss %f d_trg_loss %f, g_trg_loss %f" % (d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
                     
                 if total_batches % save_batches == 0:
-                    self.log['model'] = self.model
-                    self.log['d_train_src_loss'] = d_train_src_loss                    
-                    self.log['g_train_src_loss'] = g_train_src_loss
-                    self.log['f_train_trg_loss'] = f_train_src_loss
-                    self.log['d_train_trg_loss'] = d_train_trg_loss
-                    self.log['g_train_trg_loss'] = g_train_trg_loss
+                    self.log['best_model'] = self.model
                     checkpoint = './log/'+ str(int(time.time())) + '_' + str(epoch) + '_' + str(i) + '.tar'
                     torch.save(self.log, checkpoint)
+                
+                if total_batches % test_batches == 0:
+                    self.test_model()
 
 #             val_loss = self.validate(self, **kwargs)
 #             print(val_loss)
@@ -436,6 +439,43 @@ class digits_model_test(BaseTest):
         self.g_optimizer.step()
         self.g_train_trg_runloss += loss.data[0]
         self.g_train_trg_sum += 1  
+    
+    def test_model(self):
+        '''
+        Tests the model and returns the loss.
+        '''
+        total = 0
+        correct = 0
+        running_loss = 0
+        s_data_iter = iter(self.s_test_loader)
+
+        for i in range(l):         
+
+            s_data, s_labels = s_data_iter.next()
+
+            # check terminal state in dataloader(iterator)
+            if self.batch_size != s_data.size(0): continue
+
+            if not self.use_gpu:
+                s_data, s_labels = Variable(s_data.float()), Variable(s_labels.long())
+            else:
+                s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
+
+            s_F = self.model['F'](s_data)
+            s_G = self.model['G'](s_F)
+            
+            outputs = self.model['MNIST_classifier'](s_G)
+            loss = self.lossCE(outputs, s_labels)
+            running_loss += loss.data[0]
+            total += labels.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            correct += (predicted == s_labels.data).sum()
+
+            accuracy = 1. * correct / total
+            running_loss /= total
+            print('Test on MNIST classifier\n  loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * accuracy))
+            self.log['test_loss'].append(running_loss)
+            self.log['test_accuracy'].append(correct)
 
 
 # TODO!!!
