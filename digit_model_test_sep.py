@@ -39,8 +39,8 @@ class digits_model_test(BaseTest):
     
     def create_data_loaders(self):
         
-        MNIST_transform = transforms.Compose([transforms.Resize((32,32)),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
-        SVHN_transform = transform.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        MNIST_transform = transforms.Compose([transforms.Scale((32,32)),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
+        SVHN_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
         
         s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
@@ -73,7 +73,7 @@ class digits_model_test(BaseTest):
         dataiter_t = iter(self.t_train_loader)
         images_t, labels_t = dataiter_t.next()        
         
-        imshow(torchvision.utils.make_grid(images_s[:8], nrow=4, padding=3))
+        imshow(torchvision.utils.make_grid(images_t[:8], nrow=4, padding=3))
        
     def create_model(self):
         '''
@@ -167,11 +167,10 @@ class digits_model_test(BaseTest):
         self.model['G'].train()
         return val_loss
    
-    def seeResults(self, s_G, t):     
+    def seeResults(self, s_G):     
         s_G = s_G.cpu()
         s_G = s_G.data
                 
-        
         # Unnormalize MNIST images
         unnorm = data.UnNormalize((0.1307,), (0.3081,))
         
@@ -289,33 +288,18 @@ class digits_model_test(BaseTest):
                 if self.batch_size != s_data.size(0) or self.batch_size != t_data.size(0): continue
                 total_batches += 1
                
-
-                t_data_3 = torch.cat((t_data, t_data, t_data), 1)
-
                 if not self.use_gpu:
                     s_data, s_labels = Variable(s_data.float()), Variable(s_labels.long())
                     t_data, t_labels = Variable(t_data.float()), Variable(t_labels.long())
-                    t_data_3 = Variable(t_data_3.float())
                 else:
                     s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
                     t_data, t_labels = Variable(t_data.float().cuda()), Variable(t_labels.long().cuda())
-                    t_data_3 = Variable(t_data_3.float()).cuda()
-                    
-                t_F = self.model['F'](t_data_3)
-                t_D = self.model['D'](t_data)
-                s_F = self.model['F'](s_data)
-                s_G = self.model['G'](s_F)
-                t_G = self.model['G'](t_F)
-                
-                s_G_3 = torch.cat((s_G,s_G,s_G),1)
-                t_G_3 = torch.cat((t_G,t_G,t_G),1)
-                s_G_F = self.model['F'](s_G_3)
-                t_G_F = self.model['F'](t_G_3)
-                t_D_G = self.model['D'](t_G)
-                s_D_G = self.model['D'](s_G)
+                   
                 
                 if i == 0:
-                    self.seeResults(s_G, t_data)   
+                    s_F = self.model['F'](s_data)
+                    s_G = self.model['G'](s_F)
+                    self.seeResults(s_G)   
                 
                 # train by feeding SVHN 
                 if total_batches > 1600:
@@ -323,34 +307,34 @@ class digits_model_test(BaseTest):
                 if total_batches % F_interval == 0:
                     f_train_src(s_F, s_G_F)
 
-                d_train_src(s_G_D)
-                g_train_src(s_D_G)
-                g_train_src(s_D_G)
-                g_train_src(s_D_G)
-                g_train_src(s_D_G)
-                g_train_src(s_D_G)
-                g_train_src(s_D_G)
+                self.d_train_src(s_data)
+                self.g_train_src(s_data)
+                self.g_train_src(s_data)
+                self.g_train_src(s_data)
+                self.g_train_src(s_data)
+                self.g_train_src(s_data)
+                self.g_train_src(s_data)
 
                 #train by feeding MNIST
-                d_train_trg(t_D, t_D_G)
-                d_train_trg(t_D, t_D_G)
-                g_train_trg(t_data, t_G, t_D_G)
-                g_train_trg(t_data, t_G, t_D_G)
-                g_train_trg(t_data, t_G, t_D_G)
-                g_train_trg(t_data, t_G, t_D_G)
+                self.d_train_trg(t_data)
+                self.d_train_trg(t_data)
+                self.g_train_trg(t_data)
+                self.g_train_trg(t_data)
+                self.g_train_trg(t_data)
+                self.g_train_trg(t_data)
 
-            d_src_loss = self.d_train_src_loss / self.d_train_src_sum
-            g_src_loss = self.g_train_src_loss / self.g_train_src_sum
-            f_src_loss = self.f_train_src_loss / self.f_train_src_sum
-            d_tgr_loss = self.d_train_tgr_loss / self.d_train_tgr_sum
-            g_tgr_loss = self.g_train_tgr_loss / self.g_train_tgr_sum
+            d_src_loss = self.d_train_src_runloss / self.d_train_src_sum
+            g_src_loss = self.g_train_src_runloss / self.g_train_src_sum
+            f_src_loss = self.f_train_src_runloss / self.f_train_src_sum
+            d_tgr_loss = self.d_train_tgr_runloss / self.d_train_tgr_sum
+            g_tgr_loss = self.g_train_tgr_runloss / self.g_train_tgr_sum
 
             print("Epoch %d: d_src_loss: %f, g_src_loss %f, f_src_loss %f\n \
                 d_tgr_loss %f, g_tgr_loss %f" % (epoch, d_src_loss, g_src_loss, f_src_loss, d_tgr_loss, g_tgr_loss))
                     
-        plt.figure()
-        plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss',np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
-        plt.show()
+        #plt.figure()
+        #plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss',np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
+        #plt.show()
         
         
 #             val_loss = self.validate(self, **kwargs)
@@ -366,7 +350,7 @@ class digits_model_test(BaseTest):
 #             print('epoch:%d, train_g_loss:%4g, train_d_loss:%4g, val_loss:%4g' %(epoch,train_g_loss,train_d_loss,val_loss))
         
 
-    def d_train_src(self, s_G_D):
+    def d_train_src(self, s_data):
         self.model['D'].zero_grad()
         #self.model['G'].zero_grad()
         # for param in self.model['D'].parameters():
@@ -375,42 +359,61 @@ class digits_model_test(BaseTest):
         #     param.requires_grad = False
         # for param in self.model['G'].parameters():
         #     param.requires_grad = True
-        loss = self.d_train_src_loss_function(s_G_D)
+        s_F = self.model['F'](s_data)
+        s_G = self.model['G'](s_F)
+        s_D_G = self.model['D'](s_G)
+        loss = self.d_train_src_loss_function(s_D_G)
         loss.backward()
         self.d_optimizer.step()
-        self.d_train_src_loss += loss.data[0]
+        self.d_train_src_runloss += loss.data[0]
         self.d_train_src_sum += 1    
 
-    def g_train_src(self, s_D_G):
+    def g_train_src(self, s_data):
         self.model['G'].zero_grad()
+        s_F = self.model['F'](s_data)
+        s_G = self.model['G'](s_F)
+        s_D_G = self.model['D'](s_G)
         loss = self.g_train_src_loss_function(s_D_G)
         loss.backward()
         self.g_optimizer.step()
-        self.g_train_src_loss += loss.data[0]
+        self.g_train_src_runloss += loss.data[0]
         self.g_train_src_sum += 1  
 
-    def f_train_src(self, s_F, s_G_F):
+    def f_train_src(self, s_data):
         self.model['F'].zero_grad()
+        s_F = self.model['F'](s_data)
+        s_G = self.model['G'](s_F)
+        s_G_3 = torch.cat((s_G,s_G,s_G),1)
+        s_G_F = self.model['F'](s_G_3)
         loss = self.f_train_src_loss_function(s_F, s_G_F)
         loss.backward()
         self.f_optimizer.step()
-        self.f_train_src_loss += loss.data[0]
+        self.f_train_src_runloss += loss.data[0]
         self.f_train_src_sum += 1  
 
-    def d_train_tgr(self, t_D, t_D_G):
+    def d_train_tgr(self, t_data):
         self.model['D'].zero_grad()
+        t_data_3 = torch.cat((t_data,t_data,t_data),1) 
+        t_F = self.model['F'](t_data_3)
+        t_D = self.model['D'](t_data)
+        t_G = self.model['G'](t_F)
+        t_D_G = self.model['D'](t_G)
         loss = self.d_train_tgr_loss_function(t_D, t_D_G)
         loss.backward()
         self.d_optimizer.step()
-        self.d_train_tgr_loss += loss.data[0]
+        self.d_train_tgr_runloss += loss.data[0]
         self.d_train_tgr_sum += 1  
 
-    def g_train_tgr(self, t_data, t_G, t_D_G):
+    def g_train_tgr(self, t_data):
         self.model['G'].zero_grad()
+        t_data_3 = torch.cat((t_data,t_data,t_data),1) 
+        t_F = self.model['F'](t_data_3)
+        t_G = self.model['G'](t_F)
+        t_D_G = self.model['D'](t_G)
         loss = self.g_train_tgr_loss_function(t_data, t_G, t_D_G)
         loss.backward()
         self.g_optimizer.step()
-        self.g_train_tgr_loss += loss.data[0]
+        self.g_train_tgr_runloss += loss.data[0]
         self.g_train_tgr_sum += 1  
 
 
