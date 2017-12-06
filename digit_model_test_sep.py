@@ -34,8 +34,8 @@ class digits_model_test(BaseTest):
     
     def create_data_loaders(self):
         
-        MNIST_transform = transforms.Compose([transforms.Scale((32,32)),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
-        SVHN_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        MNIST_transform = transforms.Compose([transforms.Scale((32,32)),transforms.ToTensor(),data.NormalizeRangeTanh()])
+        SVHN_transform = transforms.Compose([transforms.ToTensor(),data.NormalizeRangeTanh()])
         
         s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
@@ -45,9 +45,9 @@ class digits_model_test(BaseTest):
         self.t_train_loader = torch.utils.data.DataLoader(t_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
-        s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
-        self.s_val_loader = torch.utils.data.DataLoader(s_val_set, batch_size=128,
-                                          shuffle=True, num_workers=8)
+#         s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
+#         self.s_val_loader = torch.utils.data.DataLoader(s_val_set, batch_size=128,
+#                                           shuffle=True, num_workers=8)
 
         s_test_set = torchvision.datasets.SVHN(root = './SVHN/', split='test', download = True, transform = SVHN_transform)
         self.s_test_loader = torch.utils.data.DataLoader(s_test_set, batch_size=128,
@@ -68,7 +68,9 @@ class digits_model_test(BaseTest):
         dataiter_t = iter(self.t_train_loader)
         images_t, labels_t = dataiter_t.next()        
         
-        img = torchvision.utils.make_grid(images_s[:8], nrow=4, padding=3)
+        unnorm = data.UnNormalizeRangeTanh()
+        img = torchvision.utils.make_grid(unnorm(images_s[:8]), nrow=4, padding=3)
+        
         npimg = img.numpy()
         plt.imshow(np.transpose(npimg, (1, 2, 0))) 
        
@@ -127,19 +129,23 @@ class digits_model_test(BaseTest):
         '''
         Creates and saves the optimizer to use for training.
         '''
-        g_lr = 3e-3
+        g_lr = 1e-4
         g_reg = 1e-6
         self.g_optimizer = optim.Adam(self.model['G'].parameters(), lr=g_lr, weight_decay=g_reg)
         
-        d_lr = 3e-3
+        d_lr = 1e-4
         d_reg = 1e-6
         #self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg) #TODO: change to SGD? (according to GAN hacks)
         self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg)
 
-        f_lr = 3e-3
+        f_lr = 1e-3
         f_reg = 1e-6
         self.f_optimizer = optim.Adam(self.model['F'].parameters(), lr=f_lr, weight_decay=f_reg)
-            
+        
+#         lambda1 = lambda lr: lr*0.9
+        
+#         self.d_scheduler = torch.optim.lr_scheduler.LambdaLR(self.d_optimizer, lr_lambda = lambda1)
+#         self.g_scheduler = torch.optim.lr_scheduler.LambdaLR(self.g_optimizer, lr_lambda = lambda1)
         
     def validate(self, **kwargs):
         '''
@@ -166,13 +172,17 @@ class digits_model_test(BaseTest):
    
     def seeResults(self, s_data, s_G):     
         s_data = s_data.cpu().data
-        s_G = s_G.cpu().data
-                
+        s_G = s_G.cpu().data     
         # Unnormalize MNIST images
-        unnorm_SVHN = data.UnNormalize((0.5,0.5,0.5), (0.5,0.5,0.5))
-        unnorm_MNIST = data.UnNormalize((0.1307,), (0.3081,))
-        self.imshow(unnorm_SVHN(s_data[:16]))
-        self.imshow(unnorm_MNIST(s_G[:16]))
+#         unnorm_SVHN = data.UnNormalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+#         unnorm_MNIST = data.UnNormalize((0.2411, 0.1801, 0.1247), (0.3312, 0.2672, 0.2127))
+        
+        unnorm = data.UnNormalizeRangeTanh()
+#         print(s_G[:16].numpy())
+#         print(unnorm_MNIST(s_G[:16]).numpy())
+#         s_G_3 = torch.cat((s_G,s_G,s_G),1)
+        self.imshow(unnorm(s_data[:16]))
+        self.imshow(unnorm(s_G[:16]))
     
     def imshow(self, img):
         plt.figure()
@@ -197,9 +207,11 @@ class digits_model_test(BaseTest):
 
     def create_generator_loss_function(self):
         
-        def g_train_src_loss_function(s_D_G):
+        def g_train_src_loss_function(s_D_G,s_G_F,s_F):
             L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
-            return L_g
+            MSEloss = nn.MSELoss()
+            LConst = MSEloss(s_G_F, s_F.detach())
+            return L_g + LConst*0
 
         self.g_train_src_loss_function = g_train_src_loss_function
 
@@ -264,6 +276,7 @@ class digits_model_test(BaseTest):
         SVHN_count = 0
         F_interval = 15
         total_batches = 0
+        train_F = True
         
         for epoch in range(num_epochs):
             
@@ -280,6 +293,10 @@ class digits_model_test(BaseTest):
            
             s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
+            
+#             if epoch>=1 and epoch%2==0:
+#                 self.g_scheduler.step()
+#                 self.d_scheduler.step()
             
             for i in range(l):         
                 
@@ -304,25 +321,19 @@ class digits_model_test(BaseTest):
                 
                 # train by feeding SVHN 
                 if total_batches > 1600:
+#                     train_F = False
                     F_interval = 30
                 if total_batches % F_interval == 0:
                     self.f_train_src(s_data)
 
                 self.d_train_src(s_data)
-                self.g_train_src(s_data)
-                self.g_train_src(s_data)
-                self.g_train_src(s_data)
-                self.g_train_src(s_data)
-                self.g_train_src(s_data)
-                self.g_train_src(s_data)
+                for j in range(8):
+                    self.g_train_src(s_data)
 
                 #train by feeding MNIST
                 self.d_train_trg(t_data)
-                self.d_train_trg(t_data)
-                self.g_train_trg(t_data)
-                self.g_train_trg(t_data)
-                self.g_train_trg(t_data)
-                self.g_train_trg(t_data)
+                for k in range(4):
+                    self.g_train_trg(t_data)
                 
                 if total_batches % visualize_batches == 0:
                     s_F = self.model['F'](s_data)
@@ -361,7 +372,8 @@ class digits_model_test(BaseTest):
                     self.log['best_model'] = self.model
                     checkpoint = './log/'+ str(int(time.time())) + '_' + str(epoch) + '_' + str(i) + '.tar'
                     torch.save(self.log, checkpoint)
-
+                
+               
 #             val_loss = self.validate(self, **kwargs)
 #             print(val_loss)
             
@@ -398,7 +410,10 @@ class digits_model_test(BaseTest):
         s_F = self.model['F'](s_data)
         s_G = self.model['G'](s_F)
         s_D_G = self.model['D'](s_G)
-        loss = self.g_train_src_loss_function(s_D_G)
+        
+        s_G_3 = torch.cat((s_G,s_G,s_G),1)
+        s_G_F = self.model['F'](s_G_3)
+        loss = self.g_train_src_loss_function(s_D_G,s_G_F,s_F)
         loss.backward()
         self.g_optimizer.step()
         self.g_train_src_runloss += loss.data[0]
