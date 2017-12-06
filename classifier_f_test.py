@@ -11,6 +11,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn as nn
 from torchvision import datasets, transforms
+from data import NormalizeRangeTanh, UnNormalizeRangeTanh
 
 class classifierFTest(BaseTest):
     
@@ -22,9 +23,12 @@ class classifierFTest(BaseTest):
 
     
     def create_data_loaders(self):
-        SVHN_transform =transforms.Compose([transforms.Scale(32,32),transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        #SVHN_transform=transforms.Compose([transforms.Scale(32,32),transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        #MNIST_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)) ])
         
-        MNIST_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)) ])
+        SVHN_transform =transforms.Compose([transforms.Scale(32,32),transforms.ToTensor(),NormalizeRangeTanh()])
+        
+        MNIST_transform = transforms.Compose([transforms.ToTensor(), NormalizeRangeTanh()])
         
         #SVHN
         if self.isSVHN:
@@ -48,7 +52,8 @@ class classifierFTest(BaseTest):
         print(images.shape)
         
         # show images
-        img = torchvision.utils.make_grid(images[:16], nrow=4)
+        unNorm = UnNormalizeRangeTanh()
+        img = torchvision.utils.make_grid(unNorm(images[:16]), nrow=4)
         npimg = img.numpy()
         plt.imshow(np.transpose(npimg, (1, 2, 0)))
         
@@ -101,6 +106,7 @@ class classifierFTest(BaseTest):
                 correct += (predicted == labels.data).sum()
 
             correct = 1. * correct / total
+            running_loss = running_loss / len(self.train_loader)
             print('[%dth epoch]' % (epoch))
             print('training loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * correct))
             self.log['train_loss'].append(running_loss)
@@ -137,7 +143,7 @@ class classifierFTest(BaseTest):
             correct += (predicted == labels.data).sum()
         
         correct = 1. * correct / total
-
+        running_loss = running_loss / len(self.test_loader)
         print('test loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * correct))
         self.log['val_loss'].append(running_loss)
         self.log['val_accuracy'].append(correct)
