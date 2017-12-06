@@ -251,8 +251,14 @@ class UnNormalizeRangeTanh(object):
 class UnNormalize(object):
     ''' from https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/3'''
     def __init__(self, mean, std):
-        self.mean = torch.Tensor([mean[0], mean[1], mean[2]]).view(1, 3, 1, 1)
-        self.std = torch.Tensor([std[0], std[1], std[2]]).view(1, 3, 1, 1)
+        mean_arr = []
+        for dim in len(mean):
+            mean_arr.append(dim)
+        std_arr = []
+        for dim in len(std):
+            std_arr.append(dim)
+        self.mean = torch.Tensor(mean_arr).view(1, len(mean), 1, 1)
+        self.std = torch.Tensor(std_arr).view(1, len(std), 1, 1)
 
     def __call__(self, tensor):
         """
