@@ -229,6 +229,25 @@ class ResizeTransform(object):
         img = img.astype(np.float32) / 255.0
         return torch.from_numpy(img)
     
+class NormalizeRangeTanh(object):
+    ''' Normalizes a tensor with values from [0, 1] to [-1, 1]. '''
+    def __init__(self):
+        pass
+    
+    def __call__(self, sample):
+        sample = sample * 2.0 - 1.0
+        return sample
+    
+class UnNormalizeRangeTanh(object):
+    ''' Unnormalizes a tensor with values from [-1, 1] to [0, 1]. '''
+    def __init__(self):
+        pass
+    
+    def __call__(self, sample):
+        sample = (sample + 1.0) * 0.5
+        return sample
+        
+    
 class UnNormalize(object):
     ''' from https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/3'''
     def __init__(self, mean, std):
