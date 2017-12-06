@@ -234,7 +234,6 @@ class UnNormalize(object):
     def __init__(self, mean, std):
         self.mean = torch.Tensor([mean[0], mean[1], mean[2]]).view(1, 3, 1, 1)
         self.std = torch.Tensor([std[0], std[1], std[2]]).view(1, 3, 1, 1)
-        print(self.mean.size())
 
     def __call__(self, tensor):
         """
