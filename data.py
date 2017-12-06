@@ -232,17 +232,17 @@ class ResizeTransform(object):
 class UnNormalize(object):
     ''' from https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/3'''
     def __init__(self, mean, std):
-        self.mean = mean
-        self.std = std
+        self.mean = torch.Tensor([mean[0], mean[1], mean[2]]).view(1, 3, 1, 1)
+        self.std = torch.Tensor([std[0], std[1], std[2]]).view(1, 3, 1, 1)
+        print(self.mean.size())
 
     def __call__(self, tensor):
         """
         Args:
-            tensor (Tensor): Tensor image of size (C, H, W) to be normalized.
+            tensor (Tensor): Tensor image of size (B, C, H, W) to be normalized.
         Returns:
             Tensor: Normalized image.
         """
-        for t, m, s in zip(tensor, self.mean, self.std):
-            t.mul_(s).add_(m)
-            # The normalize code -> t.sub_(m).div_(s)
+        tensor *= self.std
+        tensor += self.mean
         return tensor
