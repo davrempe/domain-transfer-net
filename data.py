@@ -252,10 +252,10 @@ class UnNormalize(object):
     ''' from https://discuss.pytorch.org/t/simple-way-to-inverse-transform-normalization/4821/3'''
     def __init__(self, mean, std):
         mean_arr = []
-        for dim in len(mean):
+        for dim in range(len(mean)):
             mean_arr.append(dim)
         std_arr = []
-        for dim in len(std):
+        for dim in range(len(std)):
             std_arr.append(dim)
         self.mean = torch.Tensor(mean_arr).view(1, len(mean), 1, 1)
         self.std = torch.Tensor(std_arr).view(1, len(std), 1, 1)

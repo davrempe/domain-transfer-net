@@ -12,6 +12,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.transforms as transforms
 import time
+from data import NormalizeRangeTanh, UnNormalizeRangeTanh
 #import torch.optim.lr_scheduler.MultiStepLR as MultiStepLR 
 
   
@@ -35,9 +36,12 @@ class digits_model_test(BaseTest):
         self.batch_size = 128
     
     def create_data_loaders(self):
-        
-        MNIST_transform = transforms.Compose([transforms.Scale((32,32)),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
-        SVHN_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+       
+        #SVHN_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        #MNIST_transform =transforms.Compose([transforms.Scale(32),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
+
+        SVHN_transform = transforms.Compose([transforms.ToTensor(), NormalizeRangeTanh()])
+        MNIST_transform =transforms.Compose([transforms.Scale(32),transforms.ToTensor(),NormalizeRangeTanh()])
         
         s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
@@ -70,7 +74,8 @@ class digits_model_test(BaseTest):
         dataiter_t = iter(self.t_train_loader)
         images_t, labels_t = dataiter_t.next()        
         
-        img = torchvision.utils.make_grid(images_s[:8], nrow=4, padding=3)
+        unnormRange = UnNormalizeRangeTanh()
+        img = torchvision.utils.make_grid(unnormRange(images_s[:8]), nrow=4, padding=3)
         npimg = img.numpy()
         plt.imshow(np.transpose(npimg, (1, 2, 0))) 
        
@@ -86,10 +91,10 @@ class digits_model_test(BaseTest):
             self.model['G'] = self.model['G'].cuda()    
             self.model['D'] = self.model['D'].cuda()
             
-        self.readClassifier('./pretrained_model/model_F_SVHN_3.tar')
+        self.readClassifier('./pretrained_model/model_F_SVHN_NormRange.tar')
         
         #Test
-        model = torch.load('./pretrained_model/model_classifier_MNIST.tar')
+        model = torch.load('./pretrained_model/model_classifier_MNIST_NormRange.tar')
         self.model['MNIST_classifier'] = model['best_model']
 
     def readClassifier(self, model_name):
@@ -140,7 +145,7 @@ class digits_model_test(BaseTest):
         self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg)
         #self.d_scheduler = MultiStepLR(self.d_optimizer, milestones=[5, 15, 30], gamma=0.1)
 
-        f_lr = 3e-3
+        f_lr = 1e-3
         f_reg = 1e-6
         self.f_optimizer = optim.Adam(self.model['F'].parameters(), lr=f_lr, weight_decay=f_reg)
             
@@ -173,10 +178,11 @@ class digits_model_test(BaseTest):
         s_G = s_G.cpu().data
                 
         # Unnormalize MNIST images
-        unnorm_SVHN = data.UnNormalize((0.5,0.5,0.5), (0.5,0.5,0.5))
-        unnorm_MNIST = data.UnNormalize((0.1307,), (0.3081,))
-        self.imshow(torchvision.utils.make_grid(s_data[:16], nrow=4, normalize=True))
-        self.imshow(torchvision.utils.make_grid(unnorm_MNIST(s_G[:16]), nrow=4))
+        #unnorm_SVHN = data.UnNormalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+        #unnorm_MNIST = data.UnNormalize((0.1307,), (0.3081,))
+        unnormRange = UnNormalizeRangeTanh()
+        self.imshow(torchvision.utils.make_grid(unnormRange(s_data[:16]), nrow=4))
+        self.imshow(torchvision.utils.make_grid(unnormRange(s_G[:16]), nrow=4))
     
     def imshow(self, img):
         plt.figure()
@@ -195,7 +201,7 @@ class digits_model_test(BaseTest):
             
             MSEloss = nn.MSELoss()
             LConst = MSEloss(s_G_F, s_F.detach())
-            return LConst
+            return LConst * 15
 
         self.f_train_src_loss_function = f_train_src_loss_function    
 
@@ -205,7 +211,7 @@ class digits_model_test(BaseTest):
             L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
             MSEloss = nn.MSELoss()
             LConst = MSEloss(s_G_F, s_F.detach())
-            return L_g + LConst * 0.01
+            return L_g #+ LConst * 0.01
 
         self.g_train_src_loss_function = g_train_src_loss_function
 
@@ -310,7 +316,7 @@ class digits_model_test(BaseTest):
                 
                 # train by feeding SVHN 
                 if total_batches > 1600:
-                    F_interval = 0
+                    F_interval = 30
                 if total_batches % F_interval == 0:
                     self.f_train_src(s_data)
 
