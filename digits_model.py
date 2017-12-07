@@ -126,10 +126,10 @@ class new_G(nn.Module):
         self.block = nn.Sequential(
 			# input channel will be 128
 			nn.ConvTranspose2d(self.channels, 512, kernel_size=(4,4), stride=1), # output:(batch_size, 512, 4, 4)  
-            nn.BatchNorm2d(512),
+            nn.BatchNorm1d(512),
             nn.ReLU(inplace=True),
 			nn.ConvTranspose2d(512, 256, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 256, 8, 8)
-            nn.BatchNorm2d(256),
+            nn.BatchNorm1d(256),
             nn.ReLU(inplace=True),
 			nn.ConvTranspose2d(256, 128, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 128, 16, 16)
             nn.BatchNorm1d(128),

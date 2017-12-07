@@ -43,7 +43,7 @@ class digits_model_test(BaseTest):
         MNIST_transform =transforms.Compose([transforms.Scale(32),transforms.ToTensor(),NormalizeRangeTanh()])
 
         
-        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
+        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
@@ -85,7 +85,7 @@ class digits_model_test(BaseTest):
         '''
         self.model = {}
         print('D')
-        self.model['D']= digits_model.D(128, self.use_gpu)
+        self.model['D']= digits_model.new_D(128, self.use_gpu)
         self.model['G'] = digits_model.G(128, self.use_gpu)
         if self.use_gpu:
             self.model['G'] = self.model['G'].cuda()    
@@ -134,14 +134,13 @@ class digits_model_test(BaseTest):
         '''
         Creates and saves the optimizer to use for training.
         '''
-        g_lr = 1e-4
+        g_lr = 1e-3
         g_reg = 1e-6
         self.g_optimizer = optim.Adam(self.model['G'].parameters(), lr=g_lr, weight_decay=g_reg)
         #self.g_scheduler = MultiStepLR(self.g_optimizer, milestones=[5, 15, 30], gamma=0.1)
         
 
-        d_lr = 1e-4
-
+        d_lr = 1e-3
         d_reg = 1e-6
         #self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg) #TODO: change to SGD? (according to GAN hacks)
         self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg)
@@ -212,11 +211,6 @@ class digits_model_test(BaseTest):
 
     def create_generator_loss_function(self):
         
-        def g_train_src_loss_function(s_D_G,s_G_F,s_F):
-            L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
-            MSEloss = nn.MSELoss()
-            LConst = MSEloss(s_G_F, s_F.detach())
-
         def g_train_src_loss_function(s_D_G, s_F, s_G_F):
             L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
             MSEloss = nn.MSELoss()
@@ -304,10 +298,6 @@ class digits_model_test(BaseTest):
             s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
             
-#             if epoch>=1 and epoch%2==0:
-#                 self.g_scheduler.step()
-#                 self.d_scheduler.step()
-            
             for i in range(l):         
                 
                 SVHN_count += 1               
@@ -336,12 +326,12 @@ class digits_model_test(BaseTest):
                 #    self.f_train_src(s_data)
 
                 self.d_train_src(s_data)
-                for j in range(8):
+                for j in range(1):#6
                     self.g_train_src(s_data)
 
                 #train by feeding MNIST
                 self.d_train_trg(t_data)
-                for k in range(4):
+                for j in range(1):
                     self.g_train_trg(t_data)
                 
                 if total_batches % visualize_batches == 0:
@@ -394,6 +384,8 @@ class digits_model_test(BaseTest):
         s_F = self.model['F'](s_data)
         s_G = self.model['G'](s_F)
         s_D_G = self.model['D'](s_G)
+        #sDG = s_D_G.cpu().data.squeeze()
+        #print(sDG[35:45,:])
         loss = self.d_train_src_loss_function(s_D_G)
         loss.backward()
         self.d_optimizer.step()
@@ -408,7 +400,7 @@ class digits_model_test(BaseTest):
         
         s_G_3 = torch.cat((s_G,s_G,s_G),1)
         s_G_F = self.model['F'](s_G_3)
-        loss = self.g_train_src_loss_function(s_D_G,s_G_F,s_F)
+        loss = self.g_train_src_loss_function(s_D_G, s_F, s_G_F)
 
         loss.backward()
         self.g_optimizer.step()
