@@ -12,6 +12,8 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.transforms as transforms
 import time
+#import torch.optim.lr_scheduler.MultiStepLR as MultiStepLR 
+
   
                
 class digits_model_test(BaseTest):
@@ -132,11 +134,15 @@ class digits_model_test(BaseTest):
         g_lr = 1e-4
         g_reg = 1e-6
         self.g_optimizer = optim.Adam(self.model['G'].parameters(), lr=g_lr, weight_decay=g_reg)
+        #self.g_scheduler = MultiStepLR(self.g_optimizer, milestones=[5, 15, 30], gamma=0.1)
         
+
         d_lr = 1e-4
+
         d_reg = 1e-6
         #self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg) #TODO: change to SGD? (according to GAN hacks)
         self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg)
+        #self.d_scheduler = MultiStepLR(self.d_optimizer, milestones=[5, 15, 30], gamma=0.1)
 
         f_lr = 1e-3
         f_reg = 1e-6
@@ -186,7 +192,7 @@ class digits_model_test(BaseTest):
     
     def imshow(self, img):
         plt.figure()
-        npimg = torchvision.utils.make_grid(img, nrow=4).numpy()
+        npimg = img.numpy()
         npimg = np.transpose(npimg, (1, 2, 0)) 
         zero_array = np.zeros(npimg.shape)
         one_array = np.ones(npimg.shape)
@@ -201,7 +207,7 @@ class digits_model_test(BaseTest):
             
             MSEloss = nn.MSELoss()
             LConst = MSEloss(s_G_F, s_F.detach())
-            return LConst * 15
+            return LConst
 
         self.f_train_src_loss_function = f_train_src_loss_function    
 
@@ -211,8 +217,12 @@ class digits_model_test(BaseTest):
             L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
             MSEloss = nn.MSELoss()
             LConst = MSEloss(s_G_F, s_F.detach())
-            return L_g + LConst*0
 
+        def g_train_src_loss_function(s_D_G, s_F, s_G_F):
+            L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
+            MSEloss = nn.MSELoss()
+            LConst = MSEloss(s_G_F, s_F.detach())
+            return L_g + LConst * 0.01
         self.g_train_src_loss_function = g_train_src_loss_function
 
         def g_train_trg_loss_function(t, t_G, t_D_G):
@@ -323,7 +333,7 @@ class digits_model_test(BaseTest):
                 if total_batches > 1600:
 #                     train_F = False
                     F_interval = 30
-                if total_batches % F_interval == 0:
+           if total_batches % F_interval == 0:
                     self.f_train_src(s_data)
 
                 self.d_train_src(s_data)
@@ -385,7 +395,7 @@ class digits_model_test(BaseTest):
 #                 min_val_loss = val_loss
 
 #             print('epoch:%d, train_g_loss:%4g, train_d_loss:%4g, val_loss:%4g' %(epoch,train_g_loss,train_d_loss,val_loss))
-        
+
 
     def d_train_src(self, s_data):
         self.model['D'].zero_grad()
@@ -414,6 +424,7 @@ class digits_model_test(BaseTest):
         s_G_3 = torch.cat((s_G,s_G,s_G),1)
         s_G_F = self.model['F'](s_G_3)
         loss = self.g_train_src_loss_function(s_D_G,s_G_F,s_F)
+
         loss.backward()
         self.g_optimizer.step()
         self.g_train_src_runloss += loss.data[0]
@@ -495,7 +506,7 @@ class digits_model_test(BaseTest):
             correct += (predicted == s_labels.data).sum()
 
         accuracy = 1. * correct / total
-        running_loss /= total
+        running_loss /= len(s_data_iter)
         print('Test on MNIST classifier\n  loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * accuracy))
         self.log['test_loss'].append(running_loss)
         self.log['test_accuracy'].append(correct)
