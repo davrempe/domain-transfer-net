@@ -100,7 +100,7 @@ class D(nn.Module):
 		self.alpha = alpha
 		self.upblock = nn.Sequential(
 			nn.Conv2d(1, 64, kernel_size=(4,4), stride=2, padding=1),
-			conv_bn_lrelu(64, self.channels, (4,4), 2, 1, self.alpha, ReLU = False),
+			conv_bn_lrelu(64, self.channels, (4,4), 2, 1, self.alpha, ReLU = True),
 			conv_bn_lrelu(self.channels,self.channels*2,(4,4),2,1,self.alpha, ReLU = True)
 # 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha),
 # 			conv_bn_lrelu(self.channels*4,self.channels*8,(5,5),2,self.alpha) 
@@ -126,14 +126,16 @@ class new_G(nn.Module):
         self.block = nn.Sequential(
 			# input channel will be 128
 			nn.ConvTranspose2d(self.channels, 512, kernel_size=(4,4), stride=1), # output:(batch_size, 512, 4, 4)  
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
 			nn.ConvTranspose2d(512, 256, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 256, 8, 8)
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
 			nn.ConvTranspose2d(256, 128, kernel_size=(4,4), stride=2, padding=1), # output:(batch_size, 128, 16, 16)
             nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
-			nn.ConvTranspose2d(128, 1, kernel_size=(4,4),stride=2, padding=1)
-#             nn.Tanh()
+			nn.ConvTranspose2d(128, 1, kernel_size=(4,4),stride=2, padding=1),
+            nn.Tanh()
         )
     def forward(self,input):
         output = self.block(input)
@@ -146,12 +148,14 @@ class new_D(nn.Module):
 		self.alpha = alpha
 		self.block = nn.Sequential(     
 			nn.Conv2d(1, 128, kernel_size=(3,3), stride=2,padding=1), # output:(batch_size, 128, 16, 16)
-            nn.ReLU(),
             nn.BatchNorm2d(128),
+            nn.LeakyReLU(self.alpha,inplace=True),
 			nn.Conv2d(128, 256, kernel_size=(3,3), stride=2, padding=1), # output:(batch_size, 256, 8, 8)
             nn.BatchNorm2d(256),
+            nn.LeakyReLU(self.alpha,inplace=True),
             nn.Conv2d(256, 512, kernel_size=(3,3), stride=2, padding=1), # output:(batch_size, 512, 4, 4)
             nn.BatchNorm2d(512),
+            nn.LeakyReLU(self.alpha,inplace=True),
             nn.Conv2d(512, 3, kernel_size=(4,4), stride = 2) # output:(batch_size, 1, 1, 1)
         )
 
