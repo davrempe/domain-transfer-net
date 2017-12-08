@@ -43,7 +43,7 @@ class digits_model_test(BaseTest):
         MNIST_transform =transforms.Compose([transforms.Scale(32),transforms.ToTensor(),NormalizeRangeTanh()])
 
         
-        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
+        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
@@ -85,8 +85,8 @@ class digits_model_test(BaseTest):
         '''
         self.model = {}
         print('D')
-        self.model['D']= digits_model.new_D(128, self.use_gpu)
-        self.model['G'] = digits_model.G(128, self.use_gpu)
+        self.model['D']= digits_model.D(128)
+        self.model['G'] = digits_model.G(128)
         if self.use_gpu:
             self.model['G'] = self.model['G'].cuda()    
             self.model['D'] = self.model['D'].cuda()
@@ -108,8 +108,8 @@ class digits_model_test(BaseTest):
         new_model.load_state_dict(new_dict)
         self.model['F'] =new_model
         
-        # for param in self.model['F'].parameters():
-        #     param.requires_grad = False    
+        for param in self.model['F'].parameters():
+            param.requires_grad = False    
         
     def create_loss_function(self):
         
@@ -146,9 +146,9 @@ class digits_model_test(BaseTest):
         self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg)
         #self.d_scheduler = MultiStepLR(self.d_optimizer, milestones=[5, 15, 30], gamma=0.1)
 
-        f_lr = 1e-3
-        f_reg = 1e-6
-        self.f_optimizer = optim.Adam(self.model['F'].parameters(), lr=f_lr, weight_decay=f_reg)
+        #f_lr = 1e-3
+        #f_reg = 1e-6
+        #self.f_optimizer = optim.Adam(self.model['F'].parameters(), lr=f_lr, weight_decay=f_reg)
         
 #         lambda1 = lambda lr: lr*0.9
         
@@ -215,7 +215,7 @@ class digits_model_test(BaseTest):
             L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
             MSEloss = nn.MSELoss()
             LConst = MSEloss(s_G_F, s_F.detach())
-            return L_g #+ LConst * 0.01
+            return L_g + LConst
 
         self.g_train_src_loss_function = g_train_src_loss_function
 
@@ -320,18 +320,19 @@ class digits_model_test(BaseTest):
                     t_data = Variable(t_data.float().cuda())
                 
                 # train by feeding SVHN 
-                if total_batches > 1600:
-                    F_interval = 30
+                #if total_batches > 400:
+                #    F_interval = 30
                 #if total_batches % F_interval == 0:
                 #    self.f_train_src(s_data)
 
                 self.d_train_src(s_data)
-                for j in range(1):#6
+                for j in range(6):#6
                     self.g_train_src(s_data)
 
                 #train by feeding MNIST
+                self.d_train_trg(t_data)                
                 self.d_train_trg(t_data)
-                for j in range(1):
+                for j in range(4):#4
                     self.g_train_trg(t_data)
                 
                 if total_batches % visualize_batches == 0:
@@ -339,13 +340,19 @@ class digits_model_test(BaseTest):
                     s_G = self.model['G'](s_F)
                     self.seeResults(s_data, s_G)   
         
-                    d_src_loss = self.d_train_src_runloss / self.d_train_src_sum
+                    if self.d_train_src_sum != 0:
+                        d_src_loss = self.d_train_src_runloss / self.d_train_src_sum
+                    else:
+                        d_src_loss = 0
                     g_src_loss = self.g_train_src_runloss / self.g_train_src_sum
                     if self.f_train_src_sum != 0:
                         f_src_loss = self.f_train_src_runloss / self.f_train_src_sum
                     else:
                         f_src_loss = 0
-                    d_trg_loss = self.d_train_trg_runloss / self.d_train_trg_sum
+                    if self.d_train_trg_sum != 0:
+                        d_trg_loss = self.d_train_trg_runloss / self.d_train_trg_sum
+                    else:
+                        d_trg_loss = 0
                     g_trg_loss = self.g_train_trg_runloss / self.g_train_trg_sum
                     self.log['d_train_src_loss'].append(d_src_loss)                   
                     self.log['g_train_src_loss'].append(g_src_loss)
@@ -385,12 +392,15 @@ class digits_model_test(BaseTest):
         s_G = self.model['G'](s_F)
         s_D_G = self.model['D'](s_G)
         #sDG = s_D_G.cpu().data.squeeze()
-        #print(sDG[35:45,:])
+        #print('g(f(s))\n', sDG[:10,:])
         loss = self.d_train_src_loss_function(s_D_G)
+        #print('d_train_src', loss.data[0]) 
+        #if loss.data[0] < 0.5:
+        #    return
         loss.backward()
         self.d_optimizer.step()
         self.d_train_src_runloss += loss.data[0]
-        self.d_train_src_sum += 1    
+        self.d_train_src_sum += 1
 
     def g_train_src(self, s_data):
         self.model['G'].zero_grad()
@@ -426,11 +436,18 @@ class digits_model_test(BaseTest):
         t_D = self.model['D'](t_data)
         t_G = self.model['G'](t_F)
         t_D_G = self.model['D'](t_G)
+        #tD = t_D.cpu().data.squeeze()
+        #print('t\n', tD[:10,:])
+        #tDG = t_D_G.cpu().data.squeeze()
+        #print('g(f(t))\n', tDG[:10,:])
         loss = self.d_train_trg_loss_function(t_D, t_D_G)
+        #print('d_train_trg', loss.data[0])
+        #if loss.data[0] < 0.5:
+        #    return
         loss.backward()
         self.d_optimizer.step()
         self.d_train_trg_runloss += loss.data[0]
-        self.d_train_trg_sum += 1  
+        self.d_train_trg_sum += 1
 
     def g_train_trg(self, t_data):
         self.model['G'].zero_grad()
