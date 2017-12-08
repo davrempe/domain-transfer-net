@@ -4,6 +4,8 @@ import csv
 from PIL import Image
 import numpy as np
 import torch
+from torch.autograd import Variable
+
 
 # TODO create a class for each dataset EXCEPT MNIST (this is already built into pytorch)
 # If the dataset comes pre-split into train/test we should write a separate class for each.
@@ -228,6 +230,21 @@ class ResizeTransform(object):
         img = np.transpose(img, (2, 0, 1))
         img = img.astype(np.float32) / 255.0
         return torch.from_numpy(img)
+    
+class ZeroPadBottom(object):
+    ''' Zero pads batch of image tensor Variables on bottom to given size. Input (B, C, H, W) - padded on H axis. '''
+    def __init__(self, size, use_gpu=True):
+        self.size = size
+        self.use_gpu = use_gpu
+        
+    def __call__(self, sample):
+        B, C, H, W = sample.size()
+        diff = self.size - H
+        padding = Variable(torch.zeros(B, C, diff, W), requires_grad=False)
+        if self.use_gpu:
+            padding = padding.cuda()
+        zero_padded = torch.cat((sample, padding), dim=2)
+        return zero_padded
     
 class NormalizeRangeTanh(object):
     ''' Normalizes a tensor with values from [0, 1] to [-1, 1]. '''
