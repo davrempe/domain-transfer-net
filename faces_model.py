@@ -10,11 +10,13 @@ class ConvTransBNConv1(nn.Module):
         self.out_c = out_channels
         
         self.block = nn.Sequential(
-            nn.ConvTranspose2d(self.in_c, self.out_c, kernel_size=4, stride=2),
+            nn.ConvTranspose2d(self.in_c, self.out_c, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(self.out_c),
+#             nn.ReLU(inplace=True),
             nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(self.out_c, self.out_c, kernel_size=1, stride=1),
+            nn.Conv2d(self.out_c, self.out_c, kernel_size=1, stride=1, padding=0),
             nn.BatchNorm2d(self.out_c),
+#             nn.ReLU(inplace=True)
             nn.LeakyReLU(0.2, inplace=True)
         )
     
@@ -38,13 +40,13 @@ class G(nn.Module):
             ConvTransBNConv1(256, 128),
             ConvTransBNConv1(128, 64),
             ConvTransBNConv1(64, 32),
-            nn.ConvTranspose2d(32, 3, kernel_size=4, stride=2),
+            nn.ConvTranspose2d(32, 3, kernel_size=4, stride=2, padding=1),
             nn.Tanh() # TODO: this is recommended in Radford and used in Digit net, but paper doesn't specify here.
         )
         
     def forward(self,input):
-        # input is 128d
-        conv_in = input.view(-1, 128, 1, 1)
+        # input is 864d for openface, 512 for sphereface
+        conv_in = input.view(input.size()[0], 512, 1, 1)
         output = self.g(conv_in)
         return output
     
