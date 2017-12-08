@@ -23,12 +23,12 @@ class classifierFTest(BaseTest):
 
     
     def create_data_loaders(self):
-        #SVHN_transform=transforms.Compose([transforms.Scale(32,32),transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
-        #MNIST_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)) ])
+        #SVHN_transform=transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        #MNIST_transform = transforms.Compose([transforms.Scale(32,32),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,)) ])
         
-        SVHN_transform =transforms.Compose([transforms.Scale(32,32),transforms.ToTensor(),NormalizeRangeTanh()])
+        SVHN_transform =transforms.Compose([transforms.ToTensor(), NormalizeRangeTanh()])
         
-        MNIST_transform = transforms.Compose([transforms.ToTensor(), NormalizeRangeTanh()])
+        MNIST_transform = transforms.Compose([transforms.Scale(32), transforms.ToTensor(), NormalizeRangeTanh()])
         
         #SVHN
         if self.isSVHN:
