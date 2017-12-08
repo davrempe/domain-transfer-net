@@ -12,6 +12,7 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.transforms as transforms
 import time
+import os
 from data import NormalizeRangeTanh, UnNormalizeRangeTanh
 #import torch.optim.lr_scheduler.MultiStepLR as MultiStepLR 
 
@@ -113,7 +114,8 @@ class digits_model_test(BaseTest):
         
     def create_loss_function(self):
         
-        self.lossCE = nn.CrossEntropyLoss()
+        self.lossCE = nn.CrossEntropyLoss().cuda()        
+        self.lossMSE = nn.MSELoss().cuda()
         label_0, label_1, label_2 = (torch.LongTensor(self.batch_size) for i in range(3))
         label_0 = Variable(label_0.cuda())
         label_1 = Variable(label_1.cuda())
@@ -203,8 +205,7 @@ class digits_model_test(BaseTest):
 
         def f_train_src_loss_function(s_F, s_G_F):
             
-            MSEloss = nn.MSELoss()
-            LConst = MSEloss(s_G_F, s_F.detach())
+            LConst = self.lossMSE(s_G_F, s_F.detach())
             return LConst * 15
 
         self.f_train_src_loss_function = f_train_src_loss_function    
@@ -213,9 +214,8 @@ class digits_model_test(BaseTest):
         
         def g_train_src_loss_function(s_D_G, s_F, s_G_F):
             L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
-            MSEloss = nn.MSELoss()
-            LConst = MSEloss(s_G_F, s_F.detach())
-            return L_g + LConst
+            LConst = self.lossMSE(s_G_F, s_F.detach())
+            return L_g #+ LConst
 
         self.g_train_src_loss_function = g_train_src_loss_function
 
@@ -250,7 +250,7 @@ class digits_model_test(BaseTest):
     def create_distance_function_Tdomain(self):
         # define a distance function in T
         def Distance_T(t_1, t_2):
-            distance = nn.MSELoss()
+            distance = self.lossMSE
             return distance(t_1, t_2)
 
         self.distance_Tdomain = Distance_T
@@ -262,9 +262,10 @@ class digits_model_test(BaseTest):
         visualize_batches = kwargs.get("visualize_batches", 50)        
         save_batches = kwargs.get("save_batches", 200)        
         test_batches = kwargs.get("test_batches", 200)
-
-
-        min_val_loss=float('inf')
+        
+        logdir = './log/' + str(int(time.time()))
+        os.mkdir(logdir)
+        self.log['logdir'] = logdir + '/'
 
         l = min(len(self.s_train_loader),len(self.t_train_loader))
 
@@ -372,11 +373,12 @@ class digits_model_test(BaseTest):
                     print("d_src_loss: %f, g_src_loss %f, f_src_loss %f d_trg_loss %f, g_trg_loss %f" % (d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
                 
                 if total_batches % test_batches == 0:
-                    self.test_model()
+                    accu = self.test_model()
+                    self.log['test_accu'] = format(100*accu, '.3f')
                     
                 if total_batches % save_batches == 0:
                     self.log['best_model'] = self.model
-                    checkpoint = './log/'+ str(int(time.time())) + '_' + str(epoch) + '_' + str(i) + '.tar'
+                    checkpoint = self.log['logdir'] + self.log['test_accu'] + '_' + str(epoch) + '_' + str(i) + '.tar'
                     torch.save(self.log, checkpoint)
                 
     def d_train_src(self, s_data):
@@ -504,6 +506,7 @@ class digits_model_test(BaseTest):
         print('Test on MNIST classifier\n  loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * accuracy))
         self.log['test_loss'].append(running_loss)
         self.log['test_accuracy'].append(correct)
+        return accuracy
 
 
 # TODO!!!
