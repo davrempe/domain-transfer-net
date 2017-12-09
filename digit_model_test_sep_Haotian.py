@@ -287,7 +287,7 @@ class digits_model_test(BaseTest):
 
         SVHN_count = 0
         total_batches = 0
-        LConst_interval = 1
+        LConst_interval = 9999999999
         
         self.d_train_src_sum = 0
         self.g_train_src_sum = 0
@@ -331,14 +331,14 @@ class digits_model_test(BaseTest):
                     s_labels = Variable(s_labels.long().cuda())
                     t_data = Variable(t_data.float().cuda())
                 
-                #if total_batches > 800:
-                #    LConst_interval = 5
-                #if total_batches > 1600:
-                #    LConst_interval = 25
+                if total_batches > 800:
+                    LConst_interval = 1
+                if total_batches > 1600:
+                    LConst_interval = 999999999
                 #if total_batches > 1600:
                 #    LConst_interval = 9999999999
-                if total_batches % LConst_interval == 0:
-                    self.LConst_train_src(s_data, s_labels)
+                #if total_batches % LConst_interval == 0:
+                #    self.LConst_train_src(s_data)
                 
                 # train by feeding SVHN 
                 self.d_train_src(s_data)
@@ -413,8 +413,8 @@ class digits_model_test(BaseTest):
         #print('g(f(s))\n', sDG[:10,:])
         loss = self.lossCE(s_D_G.squeeze(), self.label_0)
         #print('d_train_src', loss.data[0]) 
-        if loss.data[0] < 0.3:
-            return
+        #if loss.data[0] < 0.3:
+        #    return
         loss.backward()
         self.d_optimizer.step()
         self.d_train_src_runloss += loss.data[0]
@@ -463,8 +463,8 @@ class digits_model_test(BaseTest):
         
         loss = self.lossCE(t_D_G.squeeze(), self.label_1)+self.lossCE(t_D.squeeze(), self.label_2)
         #print('d_train_trg', loss.data[0])
-        if loss.data[0] < 0.3:
-            return
+        #if loss.data[0] < 0.3:
+        #    return
         loss.backward()
         self.d_optimizer.step()
         self.d_train_trg_runloss += loss.data[0]
