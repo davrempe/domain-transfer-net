@@ -101,6 +101,7 @@ class digits_model_test(BaseTest):
     def readClassifier(self, model_name):
 
         old_model = torch.load(model_name)['best_model']
+        #self.model['FC'] = old_model
         old_dict = old_model.state_dict() 
         new_model = digits_model.F(3,self.use_gpu)
         new_dict = new_model.state_dict()
@@ -130,7 +131,6 @@ class digits_model_test(BaseTest):
         self.create_distance_function_Tdomain()
         self.create_discriminator_loss_function()
         self.create_generator_loss_function()
-        self.create_encoder_loss_function()
         
     def create_optimizer(self):
         '''
@@ -201,23 +201,28 @@ class digits_model_test(BaseTest):
         plt.imshow(npimg)
         plt.show()
 
-    def create_encoder_loss_function(self):
-
-        def f_train_src_loss_function(s_F, s_G_F):
-            
-            LConst = self.lossMSE(s_G_F, s_F.detach())
-            return LConst * 15
-
-        self.f_train_src_loss_function = f_train_src_loss_function    
-
     def create_generator_loss_function(self):
         
         def g_train_src_loss_function(s_D_G, s_F, s_G_F):
             L_g = self.lossCE(s_D_G.squeeze(), self.label_2)
             LConst = self.lossMSE(s_G_F, s_F.detach())
-            return L_g #+ LConst
+            return L_g
 
         self.g_train_src_loss_function = g_train_src_loss_function
+        
+        def LConst_train_src_loss_function(s_F, s_G_F):
+            
+            LConst = self.lossMSE(s_G_F, s_F.detach())
+            return LConst * 15
+        
+        self.LConst_train_src_loss_function = LConst_train_src_loss_function 
+        
+        def LConst_train_src_loss_function2(s_G_F, s_labels):
+            
+            LConst = self.lossCE(s_G_F, s_labels)
+            return LConst * 15
+        
+        self.LConst_train_src_loss_function2 = LConst_train_src_loss_function2  
 
         def g_train_trg_loss_function(t, t_G, t_D_G):
            
@@ -271,31 +276,32 @@ class digits_model_test(BaseTest):
 
         self.log['d_train_src_loss'] = []
         self.log['g_train_src_loss'] = []
-        self.log['f_train_src_loss'] = []
+        self.log['LConst_train_src_loss'] = []
         self.log['d_train_trg_loss'] = []
         self.log['g_train_trg_loss'] = []        
+        self.log['train_batches'] = []        
+        
         self.log['test_loss'] = []
         self.log['test_accuracy'] = []
-        self.log['test_batches'] = test_batches
+        self.log['test_batches'] = []
 
         SVHN_count = 0
-        F_interval = 15
         total_batches = 0
-        train_F = True
+        LConst_interval = 1
+        
+        self.d_train_src_sum = 0
+        self.g_train_src_sum = 0
+        self.d_train_trg_sum = 0
+        self.g_train_trg_sum = 0
+        self.d_train_src_runloss = 0
+        self.g_train_src_runloss = 0
+        self.d_train_trg_runloss = 0
+        self.g_train_trg_runloss = 0
+        self.LConst_train_src_sum = 0
+        self.LConst_train_src_runloss = 0
         
         for epoch in range(num_epochs):
             
-            self.d_train_src_sum = 0
-            self.g_train_src_sum = 0
-            self.f_train_src_sum = 0
-            self.d_train_trg_sum = 0
-            self.g_train_trg_sum = 0
-            self.d_train_src_runloss = 0
-            self.g_train_src_runloss = 0
-            self.f_train_src_runloss = 0
-            self.d_train_trg_runloss = 0
-            self.g_train_trg_runloss = 0
-           
             s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
             
@@ -309,6 +315,10 @@ class digits_model_test(BaseTest):
                 s_data, s_labels = s_data_iter.next()
                 t_data, t_labels = t_data_iter.next()
                 
+                s_labels = s_labels.numpy().squeeze()
+                np.place(s_labels, s_labels == 10, 0)
+                s_labels = torch.from_numpy(s_labels)
+                
                 # check terminal state in dataloader(iterator)
                 if self.batch_size != s_data.size(0) or self.batch_size != t_data.size(0): continue
                 total_batches += 1
@@ -318,18 +328,24 @@ class digits_model_test(BaseTest):
                     t_data = Variable(t_data.float())
                 else:
                     s_data = Variable(s_data.float().cuda())
+                    s_labels = Variable(s_labels.long().cuda())
                     t_data = Variable(t_data.float().cuda())
                 
+                #if total_batches > 800:
+                #    LConst_interval = 5
+                #if total_batches > 1600:
+                #    LConst_interval = 25
+                #if total_batches > 1600:
+                #    LConst_interval = 9999999999
+                if total_batches % LConst_interval == 0:
+                    self.LConst_train_src(s_data, s_labels)
+                
                 # train by feeding SVHN 
-                #if total_batches > 400:
-                #    F_interval = 30
-                #if total_batches % F_interval == 0:
-                #    self.f_train_src(s_data)
-
                 self.d_train_src(s_data)
                 for j in range(6):#6
                     self.g_train_src(s_data)
-
+                   
+        
                 #train by feeding MNIST
                 self.d_train_trg(t_data)                
                 self.d_train_trg(t_data)
@@ -346,10 +362,10 @@ class digits_model_test(BaseTest):
                     else:
                         d_src_loss = 0
                     g_src_loss = self.g_train_src_runloss / self.g_train_src_sum
-                    if self.f_train_src_sum != 0:
-                        f_src_loss = self.f_train_src_runloss / self.f_train_src_sum
+                    if self.LConst_train_src_sum != 0:
+                        LConst_src_loss = self.LConst_train_src_runloss / self.LConst_train_src_sum
                     else:
-                        f_src_loss = 0
+                        LConst_src_loss = 0
                     if self.d_train_trg_sum != 0:
                         d_trg_loss = self.d_train_trg_runloss / self.d_train_trg_sum
                     else:
@@ -357,48 +373,48 @@ class digits_model_test(BaseTest):
                     g_trg_loss = self.g_train_trg_runloss / self.g_train_trg_sum
                     self.log['d_train_src_loss'].append(d_src_loss)                   
                     self.log['g_train_src_loss'].append(g_src_loss)
-                    self.log['f_train_src_loss'].append(f_src_loss)
+                    self.log['LConst_train_src_loss'].append(LConst_src_loss)
                     self.log['d_train_trg_loss'].append(d_trg_loss) 
                     self.log['g_train_trg_loss'].append(g_trg_loss)
+                    self.log['train_batches'].append(total_batches)
                     self.d_train_src_sum = 0
                     self.g_train_src_sum = 0
                     self.d_train_trg_sum = 0
-                    self.g_train_trg_sum = 0
+                    self.g_train_trg_sum = 0                    
+                    self.LConst_train_src_sum = 0
                     self.d_train_src_runloss = 0
                     self.g_train_src_runloss = 0
                     self.d_train_trg_runloss = 0
-                    self.g_train_trg_runloss = 0
+                    self.g_train_trg_runloss = 0                    
+                    self.LConst_train_src_runloss = 0
+
 
                     print("Epoch %d  batches %d" %(epoch, i))
-                    print("d_src_loss: %f, g_src_loss %f, f_src_loss %f d_trg_loss %f, g_trg_loss %f" % (d_src_loss, g_src_loss, f_src_loss, d_trg_loss, g_trg_loss))
+                    print("d_src_loss: %f, g_src_loss %f, LConst_src_loss %f d_trg_loss %f, g_trg_loss %f" % (d_src_loss, g_src_loss, LConst_src_loss, d_trg_loss, g_trg_loss))
                 
                 if total_batches % test_batches == 0:
-                    accu = self.test_model()
-                    self.log['test_accu'] = format(100*accu, '.3f')
+                    self.test_model()
+                    self.log['test_batches'].append(total_batches)
+
                     
                 if total_batches % save_batches == 0:
                     self.log['best_model'] = self.model
-                    checkpoint = self.log['logdir'] + self.log['test_accu'] + '_' + str(epoch) + '_' + str(i) + '.tar'
+                    accu = format(self.log['test_accuracy'][-1]*100, '.3f')
+                    checkpoint = self.log['logdir'] + format(epoch, '02d') + '_' + format(i, '03d') + '_' + accu + '.tar'
                     torch.save(self.log, checkpoint)
                 
     def d_train_src(self, s_data):
         self.model['D'].zero_grad()
-        #self.model['G'].zero_grad()
-        # for param in self.model['D'].parameters():
-        #     param.requires_grad = True
-        # for param in self.model['F'].parameters():
-        #     param.requires_grad = False
-        # for param in self.model['G'].parameters():
-        #     param.requires_grad = True
         s_F = self.model['F'](s_data)
         s_G = self.model['G'](s_F)
-        s_D_G = self.model['D'](s_G)
+        s_G_detach = s_G.detach()
+        s_D_G = self.model['D'](s_G_detach)
         #sDG = s_D_G.cpu().data.squeeze()
         #print('g(f(s))\n', sDG[:10,:])
-        loss = self.d_train_src_loss_function(s_D_G)
+        loss = self.lossCE(s_D_G.squeeze(), self.label_0)
         #print('d_train_src', loss.data[0]) 
-        #if loss.data[0] < 0.5:
-        #    return
+        if loss.data[0] < 0.3:
+            return
         loss.backward()
         self.d_optimizer.step()
         self.d_train_src_runloss += loss.data[0]
@@ -412,24 +428,29 @@ class digits_model_test(BaseTest):
         
         s_G_3 = torch.cat((s_G,s_G,s_G),1)
         s_G_F = self.model['F'](s_G_3)
-        loss = self.g_train_src_loss_function(s_D_G, s_F, s_G_F)
+        loss = self.lossCE(s_D_G.squeeze(), self.label_2)
 
         loss.backward()
         self.g_optimizer.step()
         self.g_train_src_runloss += loss.data[0]
         self.g_train_src_sum += 1  
 
-    def f_train_src(self, s_data):
-        self.model['F'].zero_grad()
+    def LConst_train_src(self, s_data, s_labels=None):
+        self.model['G'].zero_grad()
         s_F = self.model['F'](s_data)
         s_G = self.model['G'](s_F)
         s_G_3 = torch.cat((s_G,s_G,s_G),1)
-        s_G_F = self.model['F'](s_G_3)
-        loss = self.f_train_src_loss_function(s_F, s_G_F)
+        if s_labels is None:
+            s_G_F = self.model['F'](s_G_3)
+            loss = self.lossMSE(s_G_F, s_F.detach()) * 15
+        else:
+            s_G_F = self.model['MNIST_classifier'](s_G)
+            loss = LConst = self.lossCE(s_G_F, s_labels) * 15
+            
         loss.backward()
-        self.f_optimizer.step()
-        self.f_train_src_runloss += loss.data[0]
-        self.f_train_src_sum += 1  
+        self.g_optimizer.step()
+        self.LConst_train_src_runloss += loss.data[0]
+        self.LConst_train_src_sum += 1  
 
     def d_train_trg(self, t_data):
         self.model['D'].zero_grad()
@@ -437,15 +458,13 @@ class digits_model_test(BaseTest):
         t_F = self.model['F'](t_data_3)
         t_D = self.model['D'](t_data)
         t_G = self.model['G'](t_F)
-        t_D_G = self.model['D'](t_G)
-        #tD = t_D.cpu().data.squeeze()
-        #print('t\n', tD[:10,:])
-        #tDG = t_D_G.cpu().data.squeeze()
-        #print('g(f(t))\n', tDG[:10,:])
-        loss = self.d_train_trg_loss_function(t_D, t_D_G)
+        t_G_detach = t_G.detach()
+        t_D_G = self.model['D'](t_G_detach)
+        
+        loss = self.lossCE(t_D_G.squeeze(), self.label_1)+self.lossCE(t_D.squeeze(), self.label_2)
         #print('d_train_trg', loss.data[0])
-        #if loss.data[0] < 0.5:
-        #    return
+        if loss.data[0] < 0.3:
+            return
         loss.backward()
         self.d_optimizer.step()
         self.d_train_trg_runloss += loss.data[0]
@@ -457,7 +476,11 @@ class digits_model_test(BaseTest):
         t_F = self.model['F'](t_data_3)
         t_G = self.model['G'](t_F)
         t_D_G = self.model['D'](t_G)
-        loss = self.g_train_trg_loss_function(t_data, t_G, t_D_G)
+        
+        L_g = self.lossCE(t_D_G.squeeze(), self.label_2)
+        LTID = self.distance_Tdomain(t_G, t_data.detach())
+        loss = L_g + LTID * 15
+        
         loss.backward()
         self.g_optimizer.step()
         self.g_train_trg_runloss += loss.data[0]
@@ -505,8 +528,16 @@ class digits_model_test(BaseTest):
         running_loss /= len(s_data_iter)
         print('Test on MNIST classifier\n  loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * accuracy))
         self.log['test_loss'].append(running_loss)
-        self.log['test_accuracy'].append(correct)
-        return accuracy
+        self.log['test_accuracy'].append(accuracy)
+    
+    def plot_accuracy(self):
+        accu = self.log['test_accuracy']
+        batches = self.log['test_batches']
+        plt.plot(batches, accu, label='test_accuracy')
+        plt.xlabel('batches')        
+        plt.ylabel('test_accuracy')
+        plt.legend()
+        plt.show()
 
 
 # TODO!!!

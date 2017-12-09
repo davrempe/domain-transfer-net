@@ -11,14 +11,11 @@ import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.transforms as transforms
+import time
+import os
+from data import NormalizeRangeTanh, UnNormalizeRangeTanh
 
 
-
-def imshow(img):
-        npimg = img.numpy()
-        plt.imshow(np.transpose(npimg, (1, 2, 0)))   
-       
-        
 class digits_model_test(BaseTest):
     '''
     Abstract class that outlines how a network test case should be defined.
@@ -40,20 +37,16 @@ class digits_model_test(BaseTest):
     
     def create_data_loaders(self):
         
-        MNIST_transform = transforms.Compose([transforms.Scale(32),transforms.ToTensor(),transforms.Normalize((0.1307,), (0.3081,))])
-        SVHN_transform = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))])
+        SVHN_transform = transforms.Compose([transforms.ToTensor(), NormalizeRangeTanh()])
+        MNIST_transform =transforms.Compose([transforms.Scale(32),transforms.ToTensor(),NormalizeRangeTanh()])
         
-        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='train',download = True, transform = SVHN_transform)
+        s_train_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
         self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
 
         t_train_set = torchvision.datasets.MNIST(root='./MNIST/', train=True, download = True, transform = MNIST_transform)
         self.t_train_loader = torch.utils.data.DataLoader(t_train_set, batch_size=128,
                                           shuffle=True, num_workers=8)
-
-#         s_val_set = torchvision.datasets.SVHN(root = './SVHN/', split='extra',download = True, transform = SVHN_transform)
-#         self.s_val_loader = torch.utils.data.DataLoader(s_val_set, batch_size=128,
-#                                           shuffle=True, num_workers=8)
 
         s_test_set = torchvision.datasets.SVHN(root = './SVHN/', split='test', download = True, transform = SVHN_transform)
         self.s_test_loader = torch.utils.data.DataLoader(s_test_set, batch_size=128,
@@ -72,16 +65,11 @@ class digits_model_test(BaseTest):
         images_s, labels_s= dataiter_s.next()        
         
         dataiter_t = iter(self.t_train_loader)
-        images_t, labels_t = dataiter_t.next()   
+        images_t, labels_t = dataiter_t.next()        
         
-        np.set_printoptions(threshold=np.nan)
-        print(images_t[1].squeeze().numpy())
-        unnorm = data.UnNormalize((0.1307,), (0.3081,))
-#         print(unnorm(images_t[:8]))
-        img = torchvision.utils.make_grid(unnorm(images_t)[:16], nrow=4)
-
+        unnormRange = UnNormalizeRangeTanh()
+        img = torchvision.utils.make_grid(unnormRange(images_s[:8]), nrow=4, padding=3)
         npimg = img.numpy()
-        print(img)
         plt.imshow(np.transpose(npimg, (1, 2, 0))) 
        
     def create_model(self):
@@ -90,15 +78,32 @@ class digits_model_test(BaseTest):
         '''
         self.model = {}
         print('D')
-        self.model['D']= digits_model.D(128, self.use_gpu)
-        self.model['G'] = digits_model.G(128, self.use_gpu)
+        self.model['D']= digits_model.D(128)
+        self.model['G'] = digits_model.G(128)
         if self.use_gpu:
             self.model['G'] = self.model['G'].cuda()    
             self.model['D'] = self.model['D'].cuda()
             
-        self.readClassifier('./pretrained_model/model_F_SVHN_3.tar')
+        self.readClassifier('./pretrained_model/model_F_SVHN_NormRange.tar')
+        
+        #Test
+        model = torch.load('./pretrained_model/model_classifier_MNIST_NormRange.tar')
+        self.model['MNIST_classifier'] = model['best_model']
         
     def create_loss_function(self):
+        
+        self.lossCE = nn.CrossEntropyLoss().cuda()        
+        self.lossMSE = nn.MSELoss().cuda()
+        label_0, label_1, label_2 = (torch.LongTensor(self.batch_size) for i in range(3))
+        label_0 = Variable(label_0.cuda())
+        label_1 = Variable(label_1.cuda())
+        label_2 = Variable(label_2.cuda())
+        label_0.data.resize_(self.batch_size).fill_(0)
+        label_1.data.resize_(self.batch_size).fill_(1)
+        label_2.data.resize_(self.batch_size).fill_(2)
+        self.label_0 = label_0
+        self.label_1 = label_1
+        self.label_2 = label_2
         
         self.create_distance_function_Tdomain()
         self.create_discriminator_loss_function()
@@ -115,55 +120,16 @@ class digits_model_test(BaseTest):
         d_lr = 1e-3
         d_reg = 1e-6
         #self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg) #TODO: change to SGD? (according to GAN hacks)
-        self.d_optimizer = optim.SGD(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg)
-    
-    def test_model(self):
-        '''
-        Tests the model and returns the loss.
-        '''
-        pass
-    
-    def create_discriminator_loss_function(self):
-        '''
-        Constructs the discriminator loss function.
-        '''
-        # s - face domain
-        # t - emoji domain
-        def DLoss(s_D_G,t_D_G,t_D):
-            # 1 - faces through generator
-            # 2 - emojis through generator
-            # 3 - emojis
-
-            label_0, label_1, label_2 = (torch.LongTensor(self.batch_size) for i in range(3))
-            label_0 = Variable(label_0.cuda())
-            label_1 = Variable(label_1.cuda())
-            label_2 = Variable(label_2.cuda())
-            label_0.data.resize_(self.batch_size).fill_(0)
-            label_1.data.resize_(self.batch_size).fill_(1)
-            label_2.data.resize_(self.batch_size).fill_(2)
-
-            L_d = self.lossCE(s_D_G.squeeze(),label_0)+self.lossCE(t_D_G.squeeze(),label_1)+self.lossCE(t_D.squeeze(),label_2)
-            return L_d
-        
-        self.d_loss_function = DLoss
+        self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg)
 
     def readClassifier(self, model_name):
 
-#         self.model['F'] = torch.load(model_name)['best_model']
-#         for k, v in self.model['F'].state_dict().items():
-#             print(k)
-#             print('aaa')
-#             print(v)
-#         print(torch.load(model_name))
-#         print(self.model['F'])
         old_model = torch.load(model_name)['best_model']
         old_dict = old_model.state_dict() 
         new_model = digits_model.F(3,self.use_gpu)
         new_dict = new_model.state_dict()
         new_dict = {k: v for k, v in old_dict.items() if k in new_dict}
-        # 2. overwrite entries in the existing state dict
         old_dict.update(new_dict) 
-        # 3. load the new state dict
         new_model.load_state_dict(new_dict)
         self.model['F'] =new_model
         
@@ -193,16 +159,19 @@ class digits_model_test(BaseTest):
         self.model['G'].train()
         return val_loss
    
-    def seeResults(self, s_G, t):     
-        s_G = s_G.cpu()
-        s_G = s_G.data
-                
-        
+    def seeResults(self, s_data, s_G):     
+        s_data = s_data.cpu().data
+        s_G = s_G.cpu().data     
         # Unnormalize MNIST images
-        unnorm = data.UnNormalize((0.1307,), (0.3081,))
-        
-        npimg = torchvision.utils.make_grid(unnorm(s_G[:16]), nrow=4).numpy()
-#         print(unnorm(s_G[:16]))
+        #unnorm_SVHN = data.UnNormalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+        #unnorm_MNIST = data.UnNormalize((0.1307,), (0.3081,))
+        unnormRange = UnNormalizeRangeTanh()
+        self.imshow(torchvision.utils.make_grid(unnormRange(s_data[:16]), nrow=4))
+        self.imshow(torchvision.utils.make_grid(unnormRange(s_G[:16]), nrow=4))
+    
+    def imshow(self, img):
+        plt.figure()
+        npimg = img.numpy()
         npimg = np.transpose(npimg, (1, 2, 0)) 
         zero_array = np.zeros(npimg.shape)
         one_array = np.ones(npimg.shape)
@@ -210,24 +179,29 @@ class digits_model_test(BaseTest):
         npimg = np.maximum(npimg,zero_array)
         plt.imshow(npimg)
         plt.show()
-
+    
+    def create_discriminator_loss_function(self):
+        '''
+        Constructs the discriminator loss function.
+        '''
+        # s - face domain
+        # t - emoji domain
+        def DLoss(s_D_G,t_D_G,t_D):
+            
+            L_d = self.lossCE(s_D_G.squeeze(), self.label_0) + self.lossCE(t_D_G.squeeze(), self.label_1) + self.lossCE(t_D.squeeze(), self.label_2)
+            
+            return L_d
+        
+        self.d_loss_function = DLoss
     def create_generator_loss_function(self):
         
-        def GLoss(s_D_G, t_D_G, s_F, s_G_F, t, t_G, alpha, beta, gamma):
-            label_0, label_1, label_2 = (torch.LongTensor(self.batch_size) for i in range(3))
-            label_0 = Variable(label_0.cuda())
-            label_1 = Variable(label_1.cuda())
-            label_2 = Variable(label_2.cuda())
-            label_0.data.resize_(self.batch_size).fill_(0)
-            label_1.data.resize_(self.batch_size).fill_(1)
-            label_2.data.resize_(self.batch_size).fill_(2)
-           
-            LGang_1 = self.lossCE(s_D_G.squeeze(),label_2)
-            LGang_2 = self.lossCE(t_D_G.squeeze(),label_2)
+        def GLoss(s_F, s_G_F, s_D_G, t, t_G, t_D_G, alpha, beta, gamma):
+
+            LGang_1 = self.lossCE(s_D_G.squeeze(), self.label_2)
+            LGang_2 = self.lossCE(t_D_G.squeeze(), self.label_2)
             LGang = LGang_1 + LGang_2
             
-            loss = nn.MSELoss()
-            LConst = loss(s_G_F, s_F.detach())
+            LConst = self.lossMSE(s_G_F, s_F.detach())
             
             LTID = self.distance_Tdomain(t_G, t.detach())
             LTV = 0
@@ -238,7 +212,7 @@ class digits_model_test(BaseTest):
     def create_distance_function_Tdomain(self):
         # define a distance function in T
         def Distance_T(t_1, t_2):
-            distance = nn.MSELoss()
+            distance = self.lossMSE
             return distance(t_1, t_2)
 
         self.distance_Tdomain = Distance_T
@@ -247,46 +221,34 @@ class digits_model_test(BaseTest):
         '''
         Trains the model.
         '''
-        discrim_batches = kwargs.get("discrim_batches", 2)        
-        gen_batches = kwargs.get("gen_batches", 4)
-
-        min_val_loss=float('inf')
+        visualize_batches = kwargs.get("visualize_batches", 50)        
+        save_batches = kwargs.get("save_batches", 200)        
+        test_batches = kwargs.get("test_batches", 200)
+        
+        logdir = './log/' + str(int(time.time()))
+        os.mkdir(logdir)
+        self.log['logdir'] = logdir + '/'
 
         l = min(len(self.s_train_loader),len(self.t_train_loader))
 
-        g_loss = []
-        d_loss = []       
+        self.log['d_train_loss'] = []
+        self.log['g_train_loss'] = []
+        self.log['test_loss'] = []
+        self.log['test_accuracy'] = []
+        self.log['test_batches'] = test_batches
+
         SVHN_count = 0
+        total_batches = 0
+        d_runloss = 0
+        g_runloss = 0
         
         for epoch in range(num_epochs):
             
-            train_g_loss = 0
-            train_d_loss = 0
-           
             s_data_iter = iter(self.s_train_loader)
             t_data_iter = iter(self.t_train_loader)
             
-            training_batches = 0
-            train_discrim = True
-            
-            d_count = 0
-            g_count = 0
-         
             for i in range(l):         
                 
-                if train_discrim :
-                    if training_batches < discrim_batches:
-                        training_batches += 1
-                    else:
-                        train_discrim = False
-                        training_batches = 1
-                else:
-                    if training_batches < gen_batches:
-                        training_batches += 1
-                    else:
-                        train_discrim = True
-                        training_batches = 1
-                                   
                 SVHN_count += 1               
                 if SVHN_count >= len(self.s_train_loader):
                     SVHN_count = 0
@@ -297,80 +259,127 @@ class digits_model_test(BaseTest):
                 
                 # check terminal state in dataloader(iterator)
                 if self.batch_size != s_data.size(0) or self.batch_size != t_data.size(0): continue
-               
-                
-                self.model['G'].zero_grad()
-                self.model['D'].zero_grad()
-                
-                t_data_3 = torch.cat((t_data, t_data, t_data), 1)
+                total_batches += 1
 
+               
                 if not self.use_gpu:
                     s_data, s_labels = Variable(s_data.float()), Variable(s_labels.long())
                     t_data, t_labels = Variable(t_data.float()), Variable(t_labels.long())
-                    t_data_3 = Variable(t_data_3.float())
                 else:
                     s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
                     t_data, t_labels = Variable(t_data.float().cuda()), Variable(t_labels.long().cuda())
-                    t_data_3 = Variable(t_data_3.float()).cuda()
                     
-                t_F = self.model['F'](t_data_3)
-                t_D = self.model['D'](t_data)
+                # train discriminator
+                
+                for p in self.model['D'].parameters(): 
+                    p.requires_grad = True 
+                self.model['D'].zero_grad()
+ 
                 s_F = self.model['F'](s_data)
                 s_G = self.model['G'](s_F)
+                s_G_detach = s_G.detach()
+                s_D_G = self.model['D'](s_G_detach)
+                
+                t_data_3 = torch.cat((t_data,t_data,t_data),1)
+                t_F = self.model['F'](t_data_3)
                 t_G = self.model['G'](t_F)
+                t_G_detach = t_G.detach()
+                t_D_G = self.model['D'](t_G_detach)
                 
+                t_D = self.model['D'](t_data)
                 
-                s_G_3 = torch.cat((s_G,s_G,s_G),1)
-                t_G_3 = torch.cat((t_G,t_G,t_G),1)
-                s_G_F = self.model['F'](s_G_3)
-                t_G_F = self.model['F'](t_G_3)
-                t_D_G = self.model['D'](t_G)
+                D_loss = self.d_loss_function(s_D_G, t_D_G, t_D)
+                D_loss.backward()
+                self.d_optimizer.step()
+                
+                # train generator
+                for p in self.model['D'].parameters(): 
+                    p.requires_grad = False 
+                self.model['G'].zero_grad()
+                
                 s_D_G = self.model['D'](s_G)
+                s_G_3 = torch.cat((s_G,s_G,s_G),1)
+                s_G_F = self.model['F'](s_G_3)
                 
-                if i == 0:
-                    self.seeResults(s_G, t_data)   
-   
-                generator_loss = self.g_loss_function(s_D_G, t_D_G, s_F, s_G_F, t_data, t_G,15,15,0)
+                t_D_G = self.model['D'](t_G)
                 
-                discriminator_loss = self.d_loss_function(s_D_G,t_D_G,t_D)
-
-                if train_discrim:
-                    discriminator_loss.backward()
-                    self.d_optimizer.step()
-                else:
-                    generator_loss.backward()
-                    self.g_optimizer.step() 
-                    
-                g_loss.append(train_g_loss)            
-                d_loss.append(train_d_loss)
-            
-                train_d_loss += discriminator_loss.data[0]  
-                train_g_loss += generator_loss.data[0]
-            
-            train_g_loss = train_g_loss / l
-            train_d_loss = train_d_loss / l
-
-
-            print("Epoch %d: train_g_loss: %f train_d_loss %f" % (epoch, train_g_loss, train_d_loss))
-                    
-        plt.figure()
-        plt.plot(np.arange(1,len(g_loss)+1),g_loss, label = 'generator loss')
-        ptl.plot(np.arange(1,len(d_loss)+1),d_loss, label = 'discriminator loss')
-        plt.show()
+                G_loss = self.g_loss_function(s_F, s_G_F, s_D_G, t_data, t_G, t_D_G,15,15,0)
+                G_loss.backward()
+                self.g_optimizer.step()
+                
+                d_runloss += D_loss.data[0]               
+                g_runloss += G_loss.data[0]
+               
+                if total_batches % visualize_batches == 0:
+                    s_F = self.model['F'](s_data)
+                    s_G = self.model['G'](s_F)
+                    self.seeResults(s_data, s_G)   
         
-        
-#             val_loss = self.validate(self, **kwargs)
-#             print(val_loss)
-            
-#             self.log_losses(train_g_loss, val_loss)
-#             self.log['train_d_loss'].append(train_d_loss)
-            
-#             if val_loss < min_val_loss:
-#                 self.log_best_model()
-#                 min_val_loss = val_loss
+                    d_train_loss = d_runloss / visualize_batches
+                    g_train_loss = g_runloss / visualize_batches
+                    d_runloss = 0
+                    g_runloss = 0
+                    
+                    self.log['d_train_loss'].append(d_train_loss)                   
+                    self.log['g_train_loss'].append(g_train_loss)
+                    
+                    print("Epoch %d  batches %d" %(epoch, i))
+                    print("d_train_loss: %f, g_train_loss %f" % (d_train_loss, g_train_loss))
+                
+                if total_batches % test_batches == 0:
+                    accu = self.test_model()
+                    self.log['test_accu'] = format(100*accu, '.3f')
+                    
+                if total_batches % save_batches == 0:
+                    self.log['best_model'] = self.model
+                    checkpoint = self.log['logdir'] + self.log['test_accu'] + '_' + str(epoch) + '_' + str(i) + '.tar'
+                    torch.save(self.log, checkpoint)
+                    
+    
+    def test_model(self):
+        '''
+        Tests the model and returns the loss.
+        '''
+        total = 0
+        correct = 0
+        running_loss = 0
+        s_data_iter = iter(self.s_test_loader)
 
-#             print('epoch:%d, train_g_loss:%4g, train_d_loss:%4g, val_loss:%4g' %(epoch,train_g_loss,train_d_loss,val_loss))
+        for i in range(len(s_data_iter)):         
 
+            s_data, s_labels = s_data_iter.next()
+            s_labels = s_labels.numpy().squeeze()
+            np.place(s_labels, s_labels == 10, 0)
+            s_labels = torch.from_numpy(s_labels)
+
+
+            # check terminal state in dataloader(iterator)
+            if self.batch_size != s_data.size(0): continue
+
+            if not self.use_gpu:
+                s_data, s_labels = Variable(s_data.float()), Variable(s_labels.long())
+            else:
+                s_data, s_labels = Variable(s_data.float().cuda()), Variable(s_labels.long().cuda())
+
+            s_F = self.model['F'](s_data)
+            s_G = self.model['G'](s_F)
+            
+            if i == 0:
+                self.seeResults(s_data, s_G)   
+            
+            outputs = self.model['MNIST_classifier'](s_G)
+            loss = self.lossCE(outputs, s_labels)
+            running_loss += loss.data[0]
+            total += s_labels.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            correct += (predicted == s_labels.data).sum()
+
+        accuracy = 1. * correct / total
+        running_loss /= len(s_data_iter)
+        print('Test on MNIST classifier\n  loss: %.4f   accuracy: %.3f%%' % (running_loss, 100 * accuracy))
+        self.log['test_loss'].append(running_loss)
+        self.log['test_accuracy'].append(correct)
+        return accuracy
 
 # TODO!!!
 # compute the smoothness of a photo 
