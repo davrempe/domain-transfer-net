@@ -4,6 +4,8 @@
 
 ## Davis Rempe, Xinru Hua, Haotian Zhang (Team 925)
 
+Based on [this paper](https://arxiv.org/abs/1611.02200).
+
 ### Overview of files in this repo:
 * `/datasets/` - all dataset download/creation/processing scripts
 * `/pretrained_model/` - all saved pretrained models for f blocks
