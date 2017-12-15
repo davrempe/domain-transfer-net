@@ -92,8 +92,8 @@ class FaceTest(BaseTest):
             self.model['G'] = self.model['G'].cuda()    
             self.model['D'] = self.model['D'].cuda()
             
-#         self.prepare_openface('./pretrained_model/openface.pth', self.use_gpu)
-        self.prepare_sphereface('./pretrained_model/sphere20a_20171020.pth', self.use_gpu)
+        self.prepare_openface('./pretrained_model/openface.pth', self.use_gpu)
+#         self.prepare_sphereface('./pretrained_model/sphere20a_20171020.pth', self.use_gpu)
         
         self.up96 = nn.Upsample(size=(96,96), mode='bilinear')
         
@@ -158,12 +158,7 @@ class FaceTest(BaseTest):
         
         d_lr = 5e-4
         d_reg = 0#1e-6
-        #self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, weight_decay=d_reg) #TODO: change to SGD? (according to GAN hacks)
         self.d_optimizer = optim.Adam(self.model['D'].parameters(), lr=d_lr, betas=(0.9, 0.999), weight_decay=d_reg)
-
-#         f_lr = 3e-3
-#         f_reg = 1e-6
-#         self.f_optimizer = optim.Adam(self.model['F'].parameters(), lr=f_lr, weight_decay=f_reg)
     
     def test_model(self):
         '''
@@ -252,17 +247,6 @@ class FaceTest(BaseTest):
         npimg = np.minimum(npimg,one_array)
         npimg = np.maximum(npimg,zero_array)
         plt.imsave(filepath, npimg)
-        
-
-#     def create_encoder_loss_function(self):
-
-#         def f_train_src_loss_function(s_F, s_G_F):
-            
-#             MSEloss = nn.MSELoss()
-#             LConst = MSEloss(s_G_F, s_F.detach())
-#             return LConst * 100.0 # Alpha param
-
-#         self.f_train_src_loss_function = f_train_src_loss_function    
 
     def create_generator_loss_function(self):
         
@@ -271,9 +255,6 @@ class FaceTest(BaseTest):
 #             MSEloss = nn.MSELoss()
 #             LConst = MSEloss(s_G_F, s_F.detach())
             LConst = self.calc_similarity(s_F, s_G_F)
-#             smooth = smooth_loss()
-#             smooth.register_backward_hook(self.check_grad)
-#             LTV = smooth(s_G)
             LTV = self.g_smoothing_function(s_G)
 #             print(L_g)
 #             print(LConst)
@@ -317,26 +298,6 @@ class FaceTest(BaseTest):
         '''
         def g_train_smoothing_functions(s_G):
             B, C, H, W = s_G.size()
-            
-#             results = Variable(torch.Tensor(B, C, H-1, W-1), requires_grad=False)
-#             results = results.cuda()
-#             for k in range(0, H-1):
-#                 for l in range(0, W-1):
-#                     y_diff = torch.pow(s_G[:, :, k+1, l] - s_G[:, :, k, l], 2)
-#                     x_diff = torch.pow(s_G[:, :, k, l+1] - s_G[:, :, k, l], 2)
-#                     sum_root = torch.sqrt(y_diff + x_diff)
-#                     results[:, :, k, l] = sum_root
-#             # sum over image in each channel
-#             per_channel_sum = torch.sum(results, dim=2)
-#             per_channel_sum = torch.sum(per_channel_sum, dim=2)
-#             # take avg over all channels
-#             channel_avg = torch.mean(per_channel_sum, dim=1)
-#             # take avg over entire batch
-#             batch_avg = torch.mean(channel_avg)
-#             print(batch_avg)
-            
-# #             loss = batch_sum / B
-#             return batch_avg
                             
             gen_ten = s_G.contiguous().view(B, C, H, W)
             z_ijp1 = gen_ten[:, :, 1:, :-1]
@@ -345,13 +306,10 @@ class FaceTest(BaseTest):
             z_ijv2 = gen_ten[:, :, :-1, :-1]
 
             diff1 = z_ijp1 - z_ijv1
-            diff1 = torch.abs(diff1) #diff1 * diff1
+            diff1 = torch.abs(diff1) 
             diff2 = z_ip1j - z_ijv2
-            diff2 = torch.abs(diff2) #diff2 * diff2
+            diff2 = torch.abs(diff2) 
             
-#             diff1 = diff1[:, :, 0:95, 0:95]
-#             diff2 = diff2[:, :, 0:95, 0:95]
-
             diff_sum = diff1 + diff2
 #             print(diff_sum)
 #             dist = torch.sqrt(diff_sum)
@@ -489,21 +447,6 @@ class FaceTest(BaseTest):
                     l_g.backward()
                     self.g_optimizer.step()
 
-#                 self.d_train_src(s_data)
-#                 self.g_train_src(s_data)
-#                 self.g_train_src(s_data)
-#                 self.g_train_src(s_data)
-#                 self.g_train_src(s_data)
-#                 self.g_train_src(s_data)
-#                 self.g_train_src(s_data)
-
-                #train by feeding emoji image
-#                 self.d_train_trg(t_data)
-#                 self.d_train_trg(t_data)
-#                 self.g_train_trg(t_data)
-#                 self.g_train_trg(t_data)
-#                 self.g_train_trg(t_data)
-#                 self.g_train_trg(t_data)
                 
                 if i % visualize_batches == 0:
                     # TODO: do we need to set these in eval mode?
@@ -585,29 +528,10 @@ class FaceTest(BaseTest):
                     self.log['g_train_trg_loss'] = g_train_trg_loss
                     checkpoint = './log/'+ str(int(time.time())) + '_' + str(epoch) + '_' + str(i) + '.tar'
                     torch.save(self.log, checkpoint)
-
-#             val_loss = self.validate(self, **kwargs)
-#             print(val_loss)
-            
-#             self.log_losses(train_g_loss, val_loss)
-#             self.log['train_d_loss'].append(train_d_loss)
-            
-#             if val_loss < min_val_loss:
-#                 self.log_best_model()
-#                 min_val_loss = val_loss
-
-#             print('epoch:%d, train_g_loss:%4g, train_d_loss:%4g, val_loss:%4g' %(epoch,train_g_loss,train_d_loss,val_loss))
         
 
     def d_train_src(self, s_data):
         self.model['D'].zero_grad()
-        #self.model['G'].zero_grad()
-        # for param in self.model['D'].parameters():
-        #     param.requires_grad = True
-        # for param in self.model['F'].parameters():
-        #     param.requires_grad = False
-        # for param in self.model['G'].parameters():
-        #     param.requires_grad = True
         s_F, s_F736 = self.model['F'](s_data)
         s_G = self.model['G'](torch.cat((s_F, s_F736), dim=1))
         # upscale
@@ -639,18 +563,6 @@ class FaceTest(BaseTest):
         
 #         self.g_train_src_sum += 1  
 
-#     def f_train_src(self, s_data):
-#         self.model['F'].zero_grad()
-#         s_F = self.model['F'](s_data)
-#         s_G = self.model['G'](s_F)
-#         s_G_3 = torch.cat((s_G,s_G,s_G),1)
-#         s_G_F = self.model['F'](s_G_3)
-#         loss = self.f_train_src_loss_function(s_F, s_G_F)
-#         loss.backward()
-#         self.f_optimizer.step()
-#         self.f_train_src_runloss += loss.data[0]
-#         self.f_train_src_sum += 1  
-
     def d_train_trg(self, t_data):
         self.model['D'].zero_grad()
         t_F, t_F736 = self.model['F'](t_data)
@@ -679,55 +591,3 @@ class FaceTest(BaseTest):
 #         self.g_optimizer.step()
 #         self.g_train_trg_runloss += loss.data[0]
 #         self.g_train_trg_sum += 1  
-        
-        
-# class smooth_loss(nn.Module):
-#     def __init__(self):
-#         super(self.__class__,self).__init__()
-        
-        
-#     def forward(self,s_G):
-#         B, C, H, W = s_G.size()
-            
-# #             results = Variable(torch.Tensor(B, C, H-1, W-1), requires_grad=False)
-# #             results = results.cuda()
-# #             for k in range(0, H-1):
-# #                 for l in range(0, W-1):
-# #                     y_diff = torch.pow(s_G[:, :, k+1, l] - s_G[:, :, k, l], 2)
-# #                     x_diff = torch.pow(s_G[:, :, k, l+1] - s_G[:, :, k, l], 2)
-# #                     sum_root = torch.sqrt(y_diff + x_diff)
-# #                     results[:, :, k, l] = sum_root
-# #             # sum over image in each channel
-# #             per_channel_sum = torch.sum(results, dim=2)
-# #             per_channel_sum = torch.sum(per_channel_sum, dim=2)
-# #             # take avg over all channels
-# #             channel_avg = torch.mean(per_channel_sum, dim=1)
-# #             # take avg over entire batch
-# #             batch_avg = torch.mean(channel_avg)
-# #             print(batch_avg)
-            
-# # #             loss = batch_sum / B
-# #             return batch_avg
-                            
-#         gen_ten = s_G.contiguous().view(B, C, H, W)
-#         z_ijp1 = gen_ten[:, :, 1:, :-1]
-#         z_ijv1 = gen_ten[:, :, :-1, :-1]
-#         z_ip1j = gen_ten[:, :, :-1, 1:]
-#         z_ijv2 = gen_ten[:, :, :-1, :-1]
-
-#         diff1 = z_ijp1 - z_ijv1
-#         diff1 = diff1 * diff1
-#         diff2 = z_ip1j - z_ijv2
-#         diff2 = diff2 * diff2
-
-# #             diff1 = diff1[:, :, 0:95, 0:95]
-# #             diff2 = diff2[:, :, 0:95, 0:95]
-
-#         diff_sum = diff1 + diff2
-# #         print(diff_sum)
-# #         dist = torch.sqrt(diff_sum)
-#         per_chan_avg = torch.mean(diff_sum, dim=1)
-#         per_image_sum = torch.sum(torch.sum(per_chan_avg, dim=1), dim=1)
-#         loss = torch.mean(per_image_sum)
-# #             print(loss)
-#         return loss
