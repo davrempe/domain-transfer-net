@@ -23,4 +23,6 @@ Based on [this paper](https://arxiv.org/abs/1611.02200).
     * `digit_model_test_sep_Haotian.py` - training using some of Haotians methods
     * `faces_model_test_open.py` - face transfer training with OpenFace
     * `faces_model_test_sphere.py` - face transfer training with SphereFace
+* Training script drivers:
+    * `FaceMain.ipynb` - driver for training face transfer
 * `data.py` - all data loaders and preprocessing code
