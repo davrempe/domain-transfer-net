@@ -20,7 +20,7 @@ Based on [this paper](https://arxiv.org/abs/1611.02200).
     * `base_test.py` - abstract training class
     * `classifier_f_test.py` - f block training for digit transfer
     * `digit_model_test.py` - digit model transfer training
-    * `digit_model_test_sep_Haotian.py` - training using some of Haotians methods
+    * `digit_model_test_septrain.py` - digit model transfer training with separated source and target training
     * `faces_model_test_open.py` - face transfer training with OpenFace
     * `faces_model_test_sphere.py` - face transfer training with SphereFace
 * Training script drivers:
