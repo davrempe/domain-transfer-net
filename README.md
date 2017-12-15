@@ -12,8 +12,8 @@
 * Networks for face domain transfer:
     * `faces_model.py` - network as in paper
     * `faces_model_v2.py` - modified network for testing
-    * `net_sphere.py` - SphereFace network (taken mostly from [here](https://github.com/clcarwin/sphereface_pytorch)
-    * `open_face_model.py` and `SpatialCrossMapLRN_model.py` - OpenFace network (taken mostly from [here](https://github.com/thnkim/OpenFacePytorch)
+    * `net_sphere.py` - SphereFace network (taken mostly from [here](https://github.com/clcarwin/sphereface_pytorch))
+    * `open_face_model.py` and `SpatialCrossMapLRN_model.py` - OpenFace network (taken mostly from [here](https://github.com/thnkim/OpenFacePytorch))
 * Training scripts:
     * `base_test.py` - abstract training class
     * `classifier_f_test.py` - f block training for digit transfer
