@@ -26,3 +26,7 @@ Based on [this paper](https://arxiv.org/abs/1611.02200).
 * Training script drivers:
     * `FaceMain.ipynb` - driver for training face transfer
 * `data.py` - all data loaders and preprocessing code
+
+### Other references
+* digit model architecture inspired by [this implementation](https://github.com/taey16/DomainTransferNetwork.pytorch)
+* training strategies inspired by [this implementation](https://github.com/yunjey/domain-transfer-network)
