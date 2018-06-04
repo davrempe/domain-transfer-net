@@ -1,5 +1,7 @@
 # domain-transfer-net
 
+Please see our [final report](http://cs229.stanford.edu/proj2017/final-reports/5241608.pdf) for a discussion of achievable results with this implementation. In particular, the face-emoji domain transfer showed only very limited success (if any). 
+
 # CS 229 Final Project: Unsupervised Cross-Domain Image Generation
 
 ## Davis Rempe, Xinru Hua, Haotian Zhang (Team 925)
