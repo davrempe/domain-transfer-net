@@ -1,6 +1,11 @@
-# domain-transfer-net
+# Before Getting Started
 
-Please see our [final report](http://cs229.stanford.edu/proj2017/final-reports/5241608.pdf) for a discussion of achievable results with this implementation. In particular, the face-emoji domain transfer showed only very limited success (if any). 
+* **Face transfer showed very limited success compared to the original paper.** Please see our [final report](http://cs229.stanford.edu/proj2017/final-reports/5241608.pdf) for a discussion of achievable results with this implementation.
+* To generate the dataset of emoji images:
+   * Create a directory called `emoji_data` in the current `datasets` directory
+   * There are 2 emoji generation scripts: [`create_emojis.py`](https://github.com/davrempe/domain-transfer-net/blob/master/datasets/create_emojis.py) is for creating small datasets (<1000 images) and [`create_emojis_parallel.py`](https://github.com/davrempe/domain-transfer-net/blob/master/datasets/create_emojis_parallel.py) for large datasets.
+   * Run `python3 create_emojis.py` or `python3 create_emojis_parallel.py` to generate the dataset. Note **you must use python3** to run these scripts because of the url request. 
+   * To change the number of emojis generated, change the `num_emojis` variable at the top of the generation script.
 
 # CS 229 Final Project: Unsupervised Cross-Domain Image Generation
 
