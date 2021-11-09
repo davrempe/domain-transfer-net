@@ -15,7 +15,7 @@ import torch.optim as optim
 from torch.autograd import Variable
 import torch.nn as nn
 import torchvision.transforms as transforms       
-        
+import torchvision.datasets as dset
 class FaceTest(BaseTest):
     '''
     For training face image to emoji DTN.
@@ -41,13 +41,19 @@ class FaceTest(BaseTest):
         emoji_transform = transforms.Compose(
             [data.ResizeTransform(96), data.NormalizeRangeTanh()]) #transforms.Normalize((0.2411, 0.1801, 0.1247), (0.3312, 0.2672, 0.2127))])
         
-        s_train_set = data.MSCeleb1MDataset('./datasets/ms-celeb-1m/data/', 'train', transform=msface_transform)
-        self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128, shuffle=True, num_workers=8)
+        #s_train_set = dset.CelebA('./datasets/', split="train", transform=msface_transform, download=False)
+        #s_train_set = data.MSCeleb1MDataset('./datasets/ms-celeb-1m/data/', 'train', transform=msface_transform)
+        #self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128, shuffle=True, num_workers=8)
         
+        s_train_set = data.CelebADataset('./datasets/celeba/img_align_celeba/', './datasets/celeba/', 'train', transform=msface_transform)
+        self.s_train_loader = torch.utils.data.DataLoader(s_train_set, batch_size=128, shuffle=True, num_workers=8)
         t_train_set = data.EmojiDataset('./datasets/emoji_data/', 0, 1000000, transform=emoji_transform)
         self.t_train_loader = torch.utils.data.DataLoader(t_train_set, batch_size=128, shuffle=True, num_workers=8)
         
-        s_test_set = data.MSCeleb1MDataset('./datasets/ms-celeb-1m/data/', 'test', transform=msface_transform)
+        #s_test_set = data.MSCeleb1MDataset('./datasets/ms-celeb-1m/data/', 'test', transform=msface_transform)
+        #self.s_test_loader = torch.utils.data.DataLoader(s_test_set, batch_size=128, shuffle=False, num_workers=8)
+
+        s_test_set = data.CelebADataset('./datasets/celeba/img_align_celeba/', './datasets/celeba/', 'test', transform=msface_transform)
         self.s_test_loader = torch.utils.data.DataLoader(s_test_set, batch_size=128, shuffle=False, num_workers=8)
 
     def visualize_single_batch(self):
@@ -96,10 +102,10 @@ class FaceTest(BaseTest):
 #         self.prepare_sphereface('./pretrained_model/sphere20a_20171020.pth', self.use_gpu)
         
         self.up96 = nn.Upsample(size=(96,96), mode='bilinear')
-        
+
 #         self.model['F'].register_backward_hook(self.check_grad)
 
-        
+
     def check_grad(self, module, grad_input, grad_output):
         print('in')
         print(grad_input)
@@ -560,7 +566,7 @@ class FaceTest(BaseTest):
 #         self.g_optimizer.step()
 #         self.g_train_src_runloss += loss.data[0]
 #         self.lconst_src_runloss += lconst_loss.data[0]
-        
+
 #         self.g_train_src_sum += 1  
 
     def d_train_trg(self, t_data):

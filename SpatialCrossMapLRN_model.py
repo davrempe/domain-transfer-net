@@ -1,8 +1,8 @@
 # This is a simple modification of https://github.com/pytorch/pytorch/blob/master/torch/legacy/nn/SpatialCrossMapLRN.py.
 
 import torch
-from torch.legacy.nn.Module import Module
-from torch.legacy.nn.utils import clear
+from torch.nn import Module
+#from torch.nn.utils import clear
 
 
 class SpatialCrossMapLRN(Module):
@@ -108,7 +108,7 @@ class SpatialCrossMapLRN(Module):
 
 		return self.gradInput
 
-	def clearState(self):
-		clear(self, 'scale', 'paddedRatio', 'accumRatio')
-		return super(SpatialCrossMapLRN_temp, self).clearState()
+	# def clearState(self):
+	# 	clear(self, 'scale', 'paddedRatio', 'accumRatio')
+	# 	return super(SpatialCrossMapLRN_temp, self).clearState()
 	

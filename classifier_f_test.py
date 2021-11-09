@@ -31,7 +31,10 @@ class classifierFTest(BaseTest):
         MNIST_transform = transforms.Compose([transforms.Scale(32), transforms.ToTensor(), NormalizeRangeTanh()])
         
         #SVHN
+
         if self.isSVHN:
+            import pdb
+            pdb.set_trace()
             train_set = SVHNDataset(split='extra', transform=SVHN_transform)
             self.train_loader = torch.utils.data.DataLoader(train_set, batch_size=256, shuffle=True, num_workers=8)
             
@@ -79,6 +82,7 @@ class classifierFTest(BaseTest):
             correct = 0
             total = 0
             for i, data in enumerate(self.train_loader, 0):
+                print(i, data)
                 # get the inputs
                 inputs, labels = data
                 #inputs = torch.cat((inputs, inputs, inputs), 1)
@@ -95,12 +99,12 @@ class classifierFTest(BaseTest):
 
                 # forward + backward + optimize
                 outputs = self.model(inputs)
-                #print(outputs.data.shape, labels.squeeze().data.shape)
+                print(outputs.data.shape, labels.squeeze().data.shape)
                 loss = self.loss_function(outputs, labels)
                 loss.backward()
                 self.optimizer.step()
 
-                running_loss += loss.data[0]
+                running_loss += loss.item()
                 total += labels.size(0)
                 _, predicted = torch.max(outputs.data, 1)
                 correct += (predicted == labels.data).sum()
@@ -137,7 +141,7 @@ class classifierFTest(BaseTest):
             
             outputs = self.model(inputs)
             loss = self.loss_function(outputs, labels)
-            running_loss += loss.data[0]
+            running_loss += loss.item()
             total += labels.size(0)
             _, predicted = torch.max(outputs.data, 1)
             correct += (predicted == labels.data).sum()

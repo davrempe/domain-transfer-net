@@ -51,11 +51,11 @@ class F(nn.Module):
                 #nn.LeakyReLU(0.2, inplace=True),
             
                 nn.Conv2d(256, 128, kernel_size=4, stride=1, padding=0),
-#                 nn.ReLU(inplace=True),
-                #nn.LeakyReLU(0.2, inplace=True),
+                nn.ReLU(inplace=True),
+              	#nn.LeakyReLU(0.2, inplace=True),
 
-#                 Flatten(),
-#                 nn.Linear(128, 10)
+                Flatten(),
+                nn.Linear(128, 10)
                 #nn.Conv2d(128, 10, kernel_size=1, stride=1, padding=0)
               )
 		if self.use_gpu:        

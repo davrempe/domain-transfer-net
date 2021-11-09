@@ -3,7 +3,7 @@ import urllib.error
 import numpy as np
 import numpy.random as random
 import multiprocessing
-
+import os
 import props as pr
 
 DEBUG = False
@@ -170,6 +170,9 @@ def create_emoji(i):
 
     # call url and save image
     try:
+        if os.path.exists('./emoji_data/emoji_{}.png'.format(i)):
+            print("skip" + './emoji_data/emoji_{}.png'.format(i))
+            return
         urllib.request.urlretrieve(request, './emoji_data/emoji_{}.png'.format(i))
         i += 1
     except urllib.error.HTTPError:
